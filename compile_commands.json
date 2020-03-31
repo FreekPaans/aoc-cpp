@@ -1,0 +1,14 @@
+[
+ {
+  "directory": "/Users/freek/code/cpptests/aoc",
+  "arguments": [
+   "c++",
+   "-std=c++11",
+   "-g",
+   "day18.cpp",
+   "-o",
+   "day18"
+  ],
+  "file": "day18.cpp"
+ }
+]

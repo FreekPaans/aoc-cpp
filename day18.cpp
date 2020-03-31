@@ -1,4 +1,5 @@
 #include <iostream>
+#include <queue>
 #include <set>
 #include <map>
 #include <algorithm>
@@ -49,6 +50,10 @@ public:
   bool operator<(const Node& b) const{
     return x < b.x || ( x == b.x && y < b.y);
   }
+
+  bool operator==(const Node& b) const {
+    return x == b.x && y == b.y && val == b.val;
+  }
 };
 
 template<typename Container, typename FilterFn>
@@ -59,6 +64,16 @@ Container filter(Container& s, FilterFn f) {
 
   return res;
 }
+
+template<typename Container, typename FilterFn>
+Container filter_set(Container&& s, FilterFn f) {
+  Container res;
+
+  copy_if(s.begin(), s.end(), inserter(res, res.begin()), f);
+
+  return res;
+}
+
 
 template<typename Node>
 class Graph {
@@ -149,6 +164,54 @@ ostream& operator<<(ostream& o, Node& n) {
   return o;
 }
 
+vector<Node> recover_path(map<Node,Node> parents, Node from, Node to) {
+  vector<Node> res;
+
+  Node next = to;
+  while(true) {
+    res.push_back(next);
+    if(next == from) {
+      break;
+    }
+    next = parents[next];
+  }
+
+  reverse(res.begin(), res.end());
+
+  return res;
+}
+
+vector<Node> breadth_first_search(Graph<Node>& g, Node from, Node to) {
+  queue<Node> next;
+  set<Node> seen;
+  map<Node,Node> parents;
+
+  next.push(from);
+
+  parents[from] = from;
+
+  while(!next.empty()) {
+    auto nextNode = next.front();
+    next.pop();
+
+    if(to == nextNode) {
+      return recover_path(parents, from ,to);
+    }
+
+    seen.insert(nextNode);
+
+    for(auto adjacent : g.adjacencies(nextNode)) {
+      if(seen.find(adjacent)!=seen.end()) {
+	continue;
+      }
+      parents[adjacent] = nextNode;
+      next.push(adjacent);
+    }
+  }
+
+  throw domain_error("Couldn't find route");
+}
+
 int main2() {
   Graph<int> g;
 
@@ -168,11 +231,26 @@ int main() {
   // auto node2 = maze.find_node('p');
   // auto route = find_route(maze, node1, node2);
 
-  for(auto node : maze.nodes()) {
-    cout << node <<endl;
-    for(auto adj : maze.adjacencies(node)) {
-      cout << "-> " << adj << endl;
-    }
-    cout << endl;
+  auto all_nodes {filter_set(maze.nodes(),
+			     [](const Node& n){
+			       return n.val != '.';
+			     })};
+
+  cout << all_nodes.size() << endl;
+
+  auto first = *all_nodes.begin();
+  // auto last = *(next(all_nodes.begin(), 2));
+  auto last = *--all_nodes.end();
+
+  auto steps = breadth_first_search(maze, first, last);
+
+  cout << first.val << " - > " << last.val << endl;
+  for(auto n : steps) {
+    cout << n << endl;
   }
+  cout << "Total steps: " << steps.size() << endl;
+
+  
+  
+
 }

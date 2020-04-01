@@ -245,6 +245,7 @@ int main2() {
 //   for(auto x : g.adjacencies(1)) {
 //     cout << x << endl;
 //   }
+  
 }
 
 int main() {
@@ -269,15 +270,10 @@ int main() {
   auto steps = breadth_first_search(maze, first, last);
   auto after = high_resolution_clock::now();
   
-
   cout << first.val << " - > " << last.val << endl;
   for(auto n : steps) {
     cout << n << endl;
   }
   cout << "Total steps: " << steps.size() << endl;
   cout << "Duration: " << duration_cast<microseconds>(after - before).count() << "us" << endl;
-
-  
-  
-
 }

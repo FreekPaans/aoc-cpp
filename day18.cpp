@@ -480,13 +480,7 @@ vector<Node> find_min_steps(const Graph<Node>& maze,
     }
     key_encoding[key.val] = 1L<<bit_idx;
     bit_idx++;
-    cout << bitset<64>(keys_complete) << endl;
-    cout << "bit idx: " << bit_idx << " " << key << endl;
   }
-
-  cout << "key_to_node.size(): " << key_to_node.size() << endl;
-
-  cout << "keys_complete: " << bitset<64>(keys_complete) << endl;
 
   node_collected_keys root_node {root.val, key_encoding['@']};
   unordered_map<node_collected_keys,int,hash> weights {{root_node, 0}};
@@ -524,12 +518,6 @@ vector<Node> find_min_steps(const Graph<Node>& maze,
     }
 
     const auto my_weight = weights[smallest];
-
-    if(limit%10000==0) {
-
-      cout << "visiting " << my_weight << " " << smallest.key
-	   << " " << bitset<64>(smallest.collected_keys) << endl;
-    }
 
     for(auto& adjacent : node_to_node_path[key_to_node[smallest.key]]) {
       if(!islower(adjacent.first.val)) {
@@ -571,10 +559,6 @@ vector<Node> find_min_steps(const Graph<Node>& maze,
 	smallest_path.push(nck);
       }
     }
-    if(smallest_path.empty()) {
-      cout << "didn't push for " << smallest.key << " "
-	   << bitset<64>(smallest.collected_keys) << endl;
-    }
   }
 
   throw domain_error("Couldn't find path");
@@ -608,7 +592,10 @@ int main() {
 
   cout << "Root: " << root << endl;
 
-  auto steps = find_min_steps(maze, root);
+  auto steps =
+    measure("all steps", [&maze,&root]() {
+    return find_min_steps(maze, root);
+			 });
 
   cout << "Steps: "<< steps.size() << endl;
 
@@ -617,6 +604,7 @@ int main() {
     cout << i++ << " " << s << endl;
   }
 
+  
   // cout << "Node count: " << all_nodes.size() << endl;
 
   // const auto first = all_nodes[0];

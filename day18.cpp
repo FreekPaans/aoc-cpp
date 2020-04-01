@@ -145,6 +145,9 @@ public:
   };
 
   using hash = NodeHash;
+  using set = unordered_set<Node,NodeHash>;
+  template <typename MapTo>
+  using map = unordered_map<Node,MapTo,NodeHash>;
   int x, y;
   char val;
 
@@ -177,7 +180,7 @@ Container filter_set(const Container&& s, const FilterFn f) {
 
 template<typename Node>
 class Graph {
-  unordered_map<Node, set<Node>, typename Node::hash> _adjacancies;
+  typename Node::template map<typename Node::set> _adjacancies;
 
   void assert_has_node(const Node n) const{
     if(_adjacancies.find(n) == _adjacancies.end()) {
@@ -193,7 +196,7 @@ public:
     if(_adjacancies.find(n) != _adjacancies.end()) {
       throw invalid_argument("Node already exists");
     }
-    _adjacancies[n] = set<Node>();
+    _adjacancies[n] = typename Node::set();
     return *this;
   }
 
@@ -204,15 +207,15 @@ public:
     return *this;
   }
 
-  unordered_set<Node, typename Node::hash> nodes() const {
-    unordered_set<Node, typename Node::hash> res;
+  typename Node::set nodes() const {
+    typename Node::set res;
     for(auto n : _adjacancies) {
       res.insert(n.first);
     }
     return res;
   }
 
-  const set<Node> adjacencies(const Node for_node) const {
+  const typename Node::set adjacencies(const Node for_node) const {
     assert_has_node(for_node);
     return _adjacancies.find(for_node)->second;
   }
@@ -260,7 +263,7 @@ Graph<Node> parse_maze(const string& input) {
   return g;
 }
 
-vector<Node> recover_path(const unordered_map<Node,Node,typename Node::hash> parents,
+vector<Node> recover_path(const typename Node::map<Node> parents,
 			  Node from, Node to) {
   vector<Node> res;
 
@@ -287,8 +290,8 @@ vector<Node> breadth_first_search(const Graph<Node>& g,
 				  const Node from,
 				  const Node to) {
   queue<Node> next;
-  unordered_set<Node, typename Node::hash> seen;
-  unordered_map<Node,Node, typename Node::hash> parents;
+  typename Node::set seen;
+  typename Node::map<Node> parents;
 
   next.push(from);
 
@@ -347,12 +350,7 @@ vector<Node> maze_all_nodes(const Graph<Node>& maze) {
   return nodes;
 }
 
-using NodePaths = unordered_map<Node,
-				unordered_map<Node,
-					      vector<Node>,
-					      typename Node::hash>,
-				typename Node::hash>;
-
+using NodePaths = Node::map<typename Node::map<vector<Node>>>;
 
 NodePaths all_paths(const Graph<Node>& maze) {
   NodePaths node_to_node_path;
@@ -374,8 +372,8 @@ NodePaths all_paths(const Graph<Node>& maze) {
 }
 
 int main() {
-  // const auto maze = parse_maze(pt1_real_input);
-  const auto maze = parse_maze(pt1_sample_input1);
+  const auto maze = parse_maze(pt1_real_input);
+  // const auto maze = parse_maze(pt1_sample_input1);
   // auto node1 = maze.find_node('@');
   // auto node2 = maze.find_node('p');
   // auto route = find_route(maze, node1, node2);

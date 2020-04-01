@@ -1,4 +1,4 @@
-CXXFLAGS=-std=c++11 -g
+CXXFLAGS=-std=c++11 -g -O3
 
 all: day18
 

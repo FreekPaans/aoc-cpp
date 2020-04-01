@@ -1,4 +1,5 @@
 #include <iostream>
+#include <numeric>
 #include <unordered_set>
 #include <unordered_map>
 #include <chrono>
@@ -263,7 +264,7 @@ Graph<Node> parse_maze(const string& input) {
   return g;
 }
 
-vector<Node> recover_path(const typename Node::map<Node> parents,
+vector<Node> recover_path(const Node::map<Node> parents,
 			  Node from, Node to) {
   vector<Node> res;
 
@@ -290,8 +291,8 @@ vector<Node> breadth_first_search(const Graph<Node>& g,
 				  const Node from,
 				  const Node to) {
   queue<Node> next;
-  typename Node::set seen;
-  typename Node::map<Node> parents;
+  Node::set seen;
+  Node::map<Node> parents;
 
   next.push(from);
 
@@ -350,7 +351,11 @@ vector<Node> maze_all_nodes(const Graph<Node>& maze) {
   return nodes;
 }
 
-using NodePaths = Node::map<typename Node::map<vector<Node>>>;
+struct NodePath {
+  vector<Node> path;
+  set<char> required_keys;
+};
+using NodePaths = Node::map<Node::map<NodePath>>;
 
 NodePaths all_paths(const Graph<Node>& maze) {
   NodePaths node_to_node_path;
@@ -360,11 +365,26 @@ NodePaths all_paths(const Graph<Node>& maze) {
     for(int j=i+1; j<all_nodes_v.size(); j++) {
       const auto from = all_nodes_v[i];
       const auto to = all_nodes_v[j];
-      node_to_node_path[from][to] = breadth_first_search(maze, from, to);
 
-      auto reversed = node_to_node_path[from][to];
+      const auto from_to = breadth_first_search(maze, from, to);
+
+      auto required_keys = std::accumulate(from_to.begin(), from_to.end(),
+					   set<char>(),
+					   [](set<char>& s, const Node &n) {
+					     if(isupper(n.val)) {
+					       s.insert(tolower(n.val));
+					     }
+					     return s;
+					   });
+
+      auto reversed = from_to;
       reverse(reversed.begin(), reversed.end());
-      node_to_node_path[to][from] = move(reversed);
+
+      node_to_node_path[from][to].path = move(from_to);
+      node_to_node_path[from][to].required_keys = required_keys;
+
+      node_to_node_path[to][from].path = move(reversed);
+      node_to_node_path[to][from].required_keys = required_keys;
     }
   }
 
@@ -372,8 +392,8 @@ NodePaths all_paths(const Graph<Node>& maze) {
 }
 
 int main() {
-  const auto maze = parse_maze(pt1_real_input);
-  // const auto maze = parse_maze(pt1_sample_input1);
+  // const auto maze = parse_maze(pt1_real_input);
+  const auto maze = parse_maze(pt1_sample_input1);
   // auto node1 = maze.find_node('@');
   // auto node2 = maze.find_node('p');
   // auto route = find_route(maze, node1, node2);
@@ -390,15 +410,25 @@ int main() {
   const auto first = all_nodes[0];
   const auto last = all_nodes[all_nodes.size()-1];
 
-  auto steps = node_to_node_path[first][last];
-  cout << first.val << " - > " << last.val << endl;
-  // for(auto n : steps) {
-    // cout << n << endl;
-  // }
 
-  // for(auto n : node_to_node_path[last][first]) {
-    // cout << n << endl;
-  // }
+  auto& node_path = node_to_node_path[first][last];
+  auto steps = node_path.path;
+  cout << first.val << " - > " << last.val << endl;
+  for(auto n : steps) {
+    cout << n << endl;
+  }
+
+  for(auto n : node_to_node_path[last][first].path) {
+    cout << n << endl;
+  }
+
+  cout << "Keys required:" << endl;
+
+  for(auto k : node_path.required_keys) {
+    cout << k << endl;
+  }
+
+  
   cout << "Total steps: " << steps.size() << endl;
   cout << "Total paths: " << (all_nodes.size() * all_nodes.size() / 2) << endl;
 

@@ -1,4 +1,5 @@
 #include <iostream>
+#include <bitset>
 #include <numeric>
 #include <unordered_set>
 #include <unordered_map>
@@ -33,6 +34,19 @@ static const string pt1_sample_input1 { R"(#################
 ########.########
 #l.F..d...h..C.m#
 #################)"};
+
+static const string pt1_sample_input2 { R"(########################
+#...............b.C.D.f#
+#.######################
+#.....@.a.B.c.d.A.e.F.g#
+########################)"};
+
+static const string pt1_sample_input3 {R"(########################
+#@..............ac.GI.b#
+###d#e#f################
+###A#B#C################
+###g#h#i################
+########################)"};
 
 static const string pt1_real_input { R"(#################################################################################
 #..f....#...........#.....#.........#m..#.........#.#.......#...............#...#
@@ -334,7 +348,7 @@ int main2() {
   
 }
 
-ostream& operator<<(ostream& o, Node& n) {
+ostream& operator<<(ostream& o, const Node& n) {
   o << n.x << "," << n.y << " => " << n.val;
   return o;
 }
@@ -391,46 +405,241 @@ NodePaths all_paths(const Graph<Node>& maze) {
   return node_to_node_path;
 }
 
-int main() {
-  // const auto maze = parse_maze(pt1_real_input);
-  const auto maze = parse_maze(pt1_sample_input1);
-  // auto node1 = maze.find_node('@');
-  // auto node2 = maze.find_node('p');
-  // auto route = find_route(maze, node1, node2);
-
+template<typename F>
+auto measure(string label, F f) -> decltype(f()){
   auto before = high_resolution_clock::now();
 
-  auto node_to_node_path = all_paths(maze);
+  auto result = f();
 
   auto after = high_resolution_clock::now();
 
-  cout << (node_to_node_path.size()/2) << endl;
+  cout << "Timing " << label << ": "
+       << duration_cast<microseconds>(after - before).count()
+       << "us"
+       << endl;
+
+  return result;
+}
+
+vector<Node> find_min_steps(const Graph<Node>& maze,
+			    Node root) {
+  // todo recheck weight in prio-queue
+  struct node_collected_keys{
+    node_collected_keys() {}
+
+    node_collected_keys(const char key,
+			const long collected_keys)
+      : key{key},
+	collected_keys{collected_keys} {
+	}
+    char key;
+    long collected_keys;
+
+    bool operator==(const node_collected_keys& nck) const {
+      return key == nck.key && collected_keys == nck.collected_keys;
+    }
+  };
+
+  struct hash {
+    std::size_t operator()(const node_collected_keys& n) const noexcept {
+      // from https://stackoverflow.com/questions/17016175/c-unordered-map-using-a-custom-class-type-as-the-key
+
+      size_t res = 17;
+      res = res * 31 + std::hash<char>{}(n.key);
+      res = res * 31 + std::hash<long>{}(n.collected_keys);
+
+      return res;
+    }
+  };
+
+
+  // This function uses modified dijkstra
+  auto node_to_node_path =
+    measure("all_paths",
+	    [&maze]() {
+	      return all_paths(maze);
+	    });
+
+  // const auto all_keys = filter(maze_all_nodes(maze),
+  // 			       [](const Node& n) {
+  // 				 return islower(n.val);
+  // 			       });
+
+  const auto all_keys = maze_all_nodes(maze);
+
+  unordered_map<char,Node> key_to_node;
+  unordered_map<char,long> key_encoding;
+  long keys_complete=0;
+
+  unsigned long bit_idx=0;
+  for(auto key : all_keys) {
+    // can we leave bit_idx in this scope?
+    key_to_node[key.val] = key;
+    if(islower(key.val)) {
+      keys_complete |= 1L<<bit_idx;
+    }
+    key_encoding[key.val] = 1L<<bit_idx;
+    bit_idx++;
+    cout << bitset<64>(keys_complete) << endl;
+    cout << "bit idx: " << bit_idx << " " << key << endl;
+  }
+
+  cout << "key_to_node.size(): " << key_to_node.size() << endl;
+
+  cout << "keys_complete: " << bitset<64>(keys_complete) << endl;
+
+  node_collected_keys root_node {root.val, key_encoding['@']};
+  unordered_map<node_collected_keys,int,hash> weights {{root_node, 0}};
+
+  //todo try non-ref
+  auto compare_nodes = [&weights](const node_collected_keys& n1,
+				  const node_collected_keys& n2) {
+			 return weights[n1] > weights[n2];
+		       };
+  // todo can we not explicitly provide the second template argument (vector<Node>)?
+  priority_queue<node_collected_keys,
+		 vector<node_collected_keys>,
+		 decltype(compare_nodes) >
+    smallest_path(compare_nodes);
+
+  smallest_path.push(root_node);
+
+  int limit = 10000000;
+
+  Node::map<Node> parents;
+  while(true) {
+    if(limit--==0) {
+      throw domain_error("reached limit");
+    }
+
+    if(smallest_path.empty()) {
+      break;
+    }
+    auto smallest = smallest_path.top();
+    smallest_path.pop();
+
+    if((smallest.collected_keys & keys_complete) == keys_complete) {
+      cout << "All done! " << weights[smallest] << " " << bitset<64>(smallest.collected_keys) << endl;
+      return vector<Node>();
+    }
+
+    const auto my_weight = weights[smallest];
+
+    if(limit%10000==0) {
+
+      cout << "visiting " << my_weight << " " << smallest.key
+	   << " " << bitset<64>(smallest.collected_keys) << endl;
+    }
+
+    for(auto& adjacent : node_to_node_path[key_to_node[smallest.key]]) {
+      if(!islower(adjacent.first.val)) {
+	continue;
+      }
+
+      // feel there should be a better way to check if we have all keys...
+      int have_keys=0;
+
+      // TODO: accumulate, already already store
+
+      for(auto required_key : adjacent.second.required_keys) {
+	if((key_encoding[required_key] & smallest.collected_keys) == 0) {
+	  break;
+	}
+	have_keys++;
+      }
+
+      if(have_keys!=adjacent.second.required_keys.size()) {
+	continue;
+      }
+
+
+      const auto adj_key = adjacent.first.val;
+      const auto dist = adjacent.second.path.size()-1;
+
+      long key_builder = 0;
+      for(auto i : adjacent.second.path) {
+	key_builder |= key_encoding[i.val];
+      }
+      node_collected_keys nck(adj_key,
+			      smallest.collected_keys | key_builder);
+      const auto adj_weight = weights.find(nck);
+
+      if(adj_weight == weights.end() ||
+	 (my_weight + dist) < adj_weight->second) {
+	parents[adjacent.first] = key_to_node[smallest.key];
+	weights[nck] = my_weight + dist;
+	smallest_path.push(nck);
+      }
+    }
+    if(smallest_path.empty()) {
+      cout << "didn't push for " << smallest.key << " "
+	   << bitset<64>(smallest.collected_keys) << endl;
+    }
+  }
+
+  throw domain_error("Couldn't find path");
+}
+
+int main() {
+  auto input = pt1_real_input;
+  // auto input = pt1_sample_input1;
+  // auto input = pt1_sample_input2;
+  // auto input = pt1_sample_input3;
+
+  const auto maze =
+    measure("parse_maze",
+	    [&input]() {
+	      return parse_maze(input);
+	    });
+
+  auto node_to_node_path =
+    measure("all_paths",
+	    [&maze]() {
+	      return all_paths(maze);
+	    });
 
   const auto all_nodes = maze_all_nodes(maze);
-  const auto first = all_nodes[0];
-  const auto last = all_nodes[all_nodes.size()-1];
+
+  const auto root = *find_if(all_nodes.begin(), all_nodes.end(),
+			    [](const Node& n) {
+			      return n.val == '@';
+			    });
 
 
-  auto& node_path = node_to_node_path[first][last];
-  auto steps = node_path.path;
-  cout << first.val << " - > " << last.val << endl;
-  for(auto n : steps) {
-    cout << n << endl;
+  cout << "Root: " << root << endl;
+
+  auto steps = find_min_steps(maze, root);
+
+  cout << "Steps: "<< steps.size() << endl;
+
+  int i=0;
+  for(auto s : steps) {
+    cout << i++ << " " << s << endl;
   }
 
-  for(auto n : node_to_node_path[last][first].path) {
-    cout << n << endl;
-  }
+  // cout << "Node count: " << all_nodes.size() << endl;
 
-  cout << "Keys required:" << endl;
+  // const auto first = all_nodes[0];
+  // const auto last = all_nodes[all_nodes.size()-1];
 
-  for(auto k : node_path.required_keys) {
-    cout << k << endl;
-  }
+  // const auto& node_path = node_to_node_path[first][last];
+  // const auto& steps = node_path.path;
+  // cout << first.val << " - > " << last.val << endl;
+  // for(auto n : steps) {
+  //   cout << n << endl;
+  // }
 
-  
-  cout << "Total steps: " << steps.size() << endl;
-  cout << "Total paths: " << (all_nodes.size() * all_nodes.size() / 2) << endl;
+  // for(auto n : node_to_node_path[last][first].path) {
+  //   cout << n << endl;
+  // }
 
-  cout << "Duration: " << duration_cast<microseconds>(after - before).count() << "us" << endl;
+  // cout << "Keys required:" << endl;
+
+  // for(auto k : node_path.required_keys) {
+  //   cout << k << " ";
+  // }
+  // cout << endl;
+
+  // cout << "Total steps: " << steps.size() << endl;
+  // cout << "Total paths: " << (all_nodes.size() * all_nodes.size() / 2) << endl;
 }

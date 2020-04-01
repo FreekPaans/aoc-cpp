@@ -215,7 +215,7 @@ public:
     return res;
   }
 
-  const typename Node::set adjacencies(const Node for_node) const {
+  const typename Node::set& adjacencies(const Node for_node) const {
     assert_has_node(for_node);
     return _adjacancies.find(for_node)->second;
   }
@@ -392,13 +392,13 @@ int main() {
 
   auto steps = node_to_node_path[first][last];
   cout << first.val << " - > " << last.val << endl;
-  for(auto n : steps) {
-    cout << n << endl;
-  }
+  // for(auto n : steps) {
+    // cout << n << endl;
+  // }
 
-  for(auto n : node_to_node_path[last][first]) {
-    cout << n << endl;
-  }
+  // for(auto n : node_to_node_path[last][first]) {
+    // cout << n << endl;
+  // }
   cout << "Total steps: " << steps.size() << endl;
   cout << "Total paths: " << (all_nodes.size() * all_nodes.size() / 2) << endl;
 

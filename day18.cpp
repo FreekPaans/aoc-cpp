@@ -1,4 +1,7 @@
 #include <iostream>
+#include <unordered_set>
+#include <unordered_map>
+#include <chrono>
 #include <queue>
 #include <set>
 #include <map>
@@ -7,6 +10,7 @@
 #include <vector>
 
 using namespace std;
+using namespace std::chrono;
 
 static const string pt2_input { R"(#############
 #g#f.D#..h#l#
@@ -44,6 +48,21 @@ vector<string> split_lines2(const string& input) {
 
 class Node {
 public:
+  struct NodeHash
+  {
+    std::size_t operator()(const Node& n) const noexcept {
+      // from https://stackoverflow.com/questions/17016175/c-unordered-map-using-a-custom-class-type-as-the-key
+
+      size_t res = 17;
+      res = res * 31 + std::hash<int>{}(n.x);
+      res = res * 31 + std::hash<int>{}(n.y);
+      res = res * 31 + std::hash<char>{}(n.val);
+
+      return res;
+    }
+  };
+    
+  using hash = NodeHash;
   int x, y;
   char val;
 
@@ -54,6 +73,7 @@ public:
   bool operator==(const Node& b) const {
     return x == b.x && y == b.y && val == b.val;
   }
+  
 };
 
 template<typename Container, typename FilterFn>
@@ -74,10 +94,12 @@ Container filter_set(Container&& s, FilterFn f) {
   return res;
 }
 
+;
 
 template<typename Node>
 class Graph {
-  map<Node, set<Node>> _adjacancies;
+  unordered_map<Node, set<Node>, typename Node::hash> _adjacancies;
+  
   void assert_has_node(const Node n) const{
     if(_adjacancies.find(n) == _adjacancies.end()) {
       throw out_of_range("Node not known");
@@ -164,7 +186,7 @@ ostream& operator<<(ostream& o, Node& n) {
   return o;
 }
 
-vector<Node> recover_path(map<Node,Node> parents, Node from, Node to) {
+vector<Node> recover_path(unordered_map<Node,Node,typename Node::hash> parents, Node from, Node to) {
   vector<Node> res;
 
   Node next = to;
@@ -183,8 +205,8 @@ vector<Node> recover_path(map<Node,Node> parents, Node from, Node to) {
 
 vector<Node> breadth_first_search(Graph<Node>& g, Node from, Node to) {
   queue<Node> next;
-  set<Node> seen;
-  map<Node,Node> parents;
+  unordered_set<Node, typename Node::hash> seen;
+  unordered_map<Node,Node, typename Node::hash> parents;
 
   next.push(from);
 
@@ -213,16 +235,16 @@ vector<Node> breadth_first_search(Graph<Node>& g, Node from, Node to) {
 }
 
 int main2() {
-  Graph<int> g;
+//   Graph<int> g;
 
-  g.add(1);
+//   g.add(1);
 
-  g.add_adjacency(1, 10);
-  g.add_adjacency(1, 12);
+//   g.add_adjacency(1, 10);
+//   g.add_adjacency(1, 12);
 
-  for(auto x : g.adjacencies(1)) {
-    cout << x << endl;
-  }
+//   for(auto x : g.adjacencies(1)) {
+//     cout << x << endl;
+//   }
 }
 
 int main() {
@@ -242,13 +264,18 @@ int main() {
   // auto last = *(next(all_nodes.begin(), 2));
   auto last = *--all_nodes.end();
 
+
+  auto before = high_resolution_clock::now();
   auto steps = breadth_first_search(maze, first, last);
+  auto after = high_resolution_clock::now();
+  
 
   cout << first.val << " - > " << last.val << endl;
   for(auto n : steps) {
     cout << n << endl;
   }
   cout << "Total steps: " << steps.size() << endl;
+  cout << "Duration: " << duration_cast<microseconds>(after - before).count() << "us" << endl;
 
   
   

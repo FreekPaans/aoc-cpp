@@ -498,7 +498,8 @@ vector<Node> find_min_steps(const Graph<Node>& maze,
 
   smallest_path.push(root_node);
 
-  int limit = 10000000;
+  const int max_iterations = 10000000;
+  int limit = max_iterations;
 
   Node::map<Node> parents;
   while(true) {
@@ -514,6 +515,7 @@ vector<Node> find_min_steps(const Graph<Node>& maze,
 
     if((smallest.collected_keys & keys_complete) == keys_complete) {
       cout << "All done! " << weights[smallest] << " " << bitset<64>(smallest.collected_keys) << endl;
+      cout << "Took " << max_iterations - limit << " iterations" <<endl;
       return vector<Node>();
     }
 

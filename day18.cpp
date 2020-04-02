@@ -145,7 +145,7 @@ vector<string> split_lines2(const string& input) {
 
 class MazeNode {
 public:
-  struct NodeHash
+  struct MazeNodeHash
   {
     std::size_t operator()(const MazeNode& n) const noexcept {
       // from https://stackoverflow.com/questions/17016175/c-unordered-map-using-a-custom-class-type-as-the-key
@@ -159,10 +159,10 @@ public:
     }
   };
 
-  using hash = NodeHash;
-  using set = unordered_set<MazeNode,NodeHash>;
+  using hash = MazeNodeHash;
+  using set = unordered_set<MazeNode,MazeNodeHash>;
   template <typename MapTo>
-  using map = unordered_map<MazeNode,MapTo,NodeHash>;
+  using map = unordered_map<MazeNode,MapTo,MazeNodeHash>;
   int x, y;
   char val;
 

@@ -168,15 +168,6 @@ Container filter(const Container& s, const FilterFn f) {
   return res;
 }
 
-template<typename Container, typename FilterFn>
-Container filter_set(const Container&& s, const FilterFn f) {
-  Container res;
-
-  copy_if(s.begin(), s.end(), inserter(res, res.begin()), f);
-
-  return res;
-};
-
 namespace graph {
 
   template<typename Node>
@@ -484,12 +475,52 @@ namespace maze {
     }
   };
 
+  struct SolveMazeResult {
+    int iterations;
+    vector<MazeNode> path;
+    int steps;
+  };
+
+
   class path_finder {
+  private:
     const key_bitset_encoding key_encoding;
     unordered_map<char, unordered_map<char, bitset<64>>> path_required_keys;
     unordered_map<char, unordered_map<char, bitset<64>>> path_keys;
     NodePaths node_to_node_path;
     unordered_map<char,MazeNode> key_to_node;
+
+    SolveMazeResult done(const unordered_map<maze_position,maze_position,maze_position::hash> parents,
+			 const maze_position from,
+			 const maze_position to,
+			 const int steps,
+			 const int iterations) {
+      SolveMazeResult res;
+      res.steps = steps;
+      res.iterations = iterations;
+
+      // TODO: can probably share this with `recover_path`
+      maze_position next = to;
+      while(true) {
+	res.path.push_back(key_to_node[next.at_key]);
+
+	if(next == from) {
+	  break;
+	}
+
+	const auto parent = parents.find(next);
+
+	if(parent == parents.end()) {
+	  throw domain_error("Couldn't find parent");
+	}
+
+	next = parent->second;
+      }
+
+      reverse(res.path.begin(), res.path.end());
+
+      return res;
+    }
 
   public:
 
@@ -515,7 +546,7 @@ namespace maze {
       }
     }
 
-    vector<MazeNode> solve(const MazeNode root, const int max_iterations) {
+    SolveMazeResult solve(const MazeNode root, const int max_iterations) {
       // This function uses modified dijkstra
 
       unordered_map<maze_position,int,maze_position::hash> weights;
@@ -532,7 +563,7 @@ namespace maze {
 
       int limit = max_iterations;
 
-      MazeNode::map<MazeNode> parents;
+      unordered_map<maze_position,maze_position,maze_position::hash> parents;
       while(true) {
 	if(limit--==0) {
 	  throw domain_error("reached limit");
@@ -546,9 +577,8 @@ namespace maze {
 	dijkstra_queue.pop();
 
 	if(key_encoding.is_all_keys(current_node.collected_keys)) {
-	  cout << "All done! " << weights[current_node] << " " << current_node.collected_keys << endl;
-	  cout << "Took " << max_iterations - limit << " iterations" <<endl;
-	  return vector<MazeNode>();
+	  return done(parents, root_node, current_node, weights[current_node],
+		      max_iterations-limit);
 	}
 
 	const auto my_weight = weights[current_node];
@@ -575,7 +605,7 @@ namespace maze {
 
 	  if(adj_weight == weights.end() ||
 	     (my_weight + distance) < adj_weight->second) {
-	    parents[key_to_node[adj_node]] = key_to_node[current_node.at_key];
+	    parents[pos] = current_node;
 	    weights[pos] = my_weight + distance;
 	    dijkstra_queue.push(pos);
 	  }
@@ -583,11 +613,10 @@ namespace maze {
       }
 
       throw domain_error("Couldn't find path");
-
     }
   };
 
-  vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
+  SolveMazeResult find_min_steps(const Graph<MazeNode>& maze,
 				  const MazeNode root,
 				  const int max_iterations=100000) {
     path_finder finder{maze};
@@ -609,12 +638,6 @@ int main() {
 	      return maze::parse_maze(input);
 	    });
 
-  auto node_to_node_path =
-    measure("all_paths",
-	    [&maze]() {
-	      return maze::maze_all_paths(maze);
-	    });
-
   const auto all_nodes = maze::maze_all_keys_and_doors(maze);
 
   const auto root = *find_if(all_nodes.begin(), all_nodes.end(),
@@ -625,12 +648,14 @@ int main() {
 
   cout << "Root: " << root << endl;
 
-  auto steps =
+  const auto result =
     measure("all steps", [&maze,&root]() {
 			   return maze::find_min_steps(maze, root);
 			 });
 
-  cout << "Steps: "<< steps.size() << endl;
+  cout << "All done, steps: " << result.steps << ", iterations: " << result.iterations << endl;
+
+  auto& steps =result.path;
 
   int i=0;
   for(auto s : steps) {
@@ -643,3 +668,7 @@ int main() {
 // how to ergonomic map/filter operations? (LINQ?)
 // easier way to specify hash functions?
 // template optional arguments use default
+// "algorithm class" -> path finder?
+// copy/move defaults
+// named tuples
+// class initializer syntax? SolveMazeResult { steps=12, etc }

@@ -435,6 +435,10 @@ bool is_door(char node_val) {
   return isupper(node_val);
 }
 
+bool is_key(char node_val) {
+  return islower(node_val);
+}
+
 vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
 				MazeNode root) {
   // This function uses modified dijkstra
@@ -467,7 +471,6 @@ vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
       return res;
     }
   };
-
 
   auto node_to_node_path =
     measure("all_paths",
@@ -509,9 +512,9 @@ vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
   priority_queue<node_collected_keys,
 		 vector<node_collected_keys>,
 		 decltype(compare_nodes) >
-    smallest_path(compare_nodes);
+    dijkstra_queue(compare_nodes);
 
-  smallest_path.push(root_node);
+  dijkstra_queue.push(root_node);
 
   const int max_iterations = 10000000;
   int limit = max_iterations;
@@ -542,45 +545,46 @@ vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
       throw domain_error("reached limit");
     }
 
-    if(smallest_path.empty()) {
+    if(dijkstra_queue.empty()) {
       break;
     }
-    auto smallest = smallest_path.top();
-    smallest_path.pop();
 
-    if((smallest.collected_keys & keys_complete) == keys_complete) {
-      cout << "All done! " << weights[smallest] << " " << smallest.collected_keys << endl;
+    auto current_node = dijkstra_queue.top();
+    dijkstra_queue.pop();
+
+    if((current_node.collected_keys & keys_complete) == keys_complete) {
+      cout << "All done! " << weights[current_node] << " " << current_node.collected_keys << endl;
       cout << "Took " << max_iterations - limit << " iterations" <<endl;
       return vector<MazeNode>();
     }
 
-    const auto my_weight = weights[smallest];
+    const auto my_weight = weights[current_node];
 
-    for(const auto& adjacent : node_to_node_path[smallest.key]) {
+    for(const auto& adjacent : node_to_node_path[current_node.key]) {
       const auto adj_key = adjacent.first;
       const auto path = adjacent.second;
 
-      if(!islower(adj_key)) {
+      if(!is_key(adj_key)) {
 	continue;
       }
 
-      const auto required_keys = path_required_keys[smallest.key][adj_key];
-      if((smallest.collected_keys & required_keys) != required_keys) {
+      const auto required_keys = path_required_keys[current_node.key][adj_key];
+      if((current_node.collected_keys & required_keys) != required_keys) {
 	continue;
       }
 
       const auto distance = path.size()-1;
       const node_collected_keys nck(adj_key,
-				    smallest.collected_keys |
-				    path_keys[smallest.key][adj_key]);
+				    current_node.collected_keys |
+				    path_keys[current_node.key][adj_key]);
 
       const auto adj_weight = weights.find(nck);
 
       if(adj_weight == weights.end() ||
 	 (my_weight + distance) < adj_weight->second) {
-	parents[key_to_node[adj_key]] = key_to_node[smallest.key];
+	parents[key_to_node[adj_key]] = key_to_node[current_node.key];
 	weights[nck] = my_weight + distance;
-	smallest_path.push(nck);
+	dijkstra_queue.push(nck);
       }
     }
   }

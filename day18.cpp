@@ -308,12 +308,13 @@ vector<Node> recover_path(const typename Node::template map<Node> parents,
   return res;
 }
 
-vector<MazeNode> breadth_first_search(const Graph<MazeNode>& g,
-				      const MazeNode from,
-				      const MazeNode to) {
-  queue<MazeNode> next_nodes;
-  MazeNode::set seen_nodes;
-  MazeNode::map<MazeNode> parents;
+template <typename Node>
+vector<Node> breadth_first_search(const Graph<Node>& g,
+				      const Node from,
+				      const Node to) {
+  queue<Node> next_nodes;
+  typename Node::set seen_nodes;
+  typename Node::template map<Node> parents;
 
   parents[from] = from;
   next_nodes.push(from);

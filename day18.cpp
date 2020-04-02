@@ -1,3 +1,5 @@
+// Solves https://adventofcode.com/2019/day/18 part 1
+
 #include <iostream>
 #include <bitset>
 #include <numeric>

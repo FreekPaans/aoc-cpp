@@ -319,300 +319,300 @@ namespace graph {
 }
 
 namespace maze {
-using namespace graph;
+  using namespace graph;
 
-Graph<MazeNode> parse_maze(const string& input) {
-  vector<MazeNode> all_nodes;
-  int i=0;
-  for(auto& line : split_lines2(input)) {
-    int j=0;
-    for(auto c : line) {
-      MazeNode n;
-      n.x = i;
-      n.y = j;
-      n.val = c;
-      all_nodes.push_back(n);
-      j++;
-    }
-    i++;
-  }
-
-  all_nodes = filter(all_nodes,[](const MazeNode& n) { return n.val != '#'; });
-
-  map<pair<int,int>, MazeNode> coord_to_node;
-
-  for(auto n : all_nodes) {
-    coord_to_node[make_pair(n.x, n.y)] = n;
-  }
-
-  Graph<MazeNode> g;
-
-  for(const auto n : all_nodes) {
-    g.add(n);
-    static const vector<pair<int,int>> neighbours {{-1,0},{0, -1}, {1,0}, {0,1}};
-
-    for(auto neigh : neighbours) {
-      const auto adj = coord_to_node.find(make_pair(n.x + neigh.first,
-						    n.y + neigh.second));
-      if(adj==coord_to_node.end()) {
-	continue;
+  Graph<MazeNode> parse_maze(const string& input) {
+    vector<MazeNode> all_nodes;
+    int i=0;
+    for(auto& line : split_lines2(input)) {
+      int j=0;
+      for(auto c : line) {
+	MazeNode n;
+	n.x = i;
+	n.y = j;
+	n.val = c;
+	all_nodes.push_back(n);
+	j++;
       }
-      g.add_adjacency(n, adj->second);
+      i++;
     }
-  }
 
-  return g; // TODO is this a move or a copy?
-}
+    all_nodes = filter(all_nodes,[](const MazeNode& n) { return n.val != '#'; });
 
+    map<pair<int,int>, MazeNode> coord_to_node;
 
-
-
-
-int main2() {
-  //   Graph<int> g;
-
-  //   g.add(1);
-
-  //   g.add_adjacency(1, 10);
-  //   g.add_adjacency(1, 12);
-
-  //   for(auto x : g.adjacencies(1)) {
-  //     cout << x << endl;
-  //   }
-}
-
-
-vector<MazeNode> maze_all_keys_and_doors(const Graph<MazeNode>& maze) {
-  vector<MazeNode> keys_and_doors;
-
-  const auto all_nodes = maze.nodes();
-
-  copy_if(all_nodes.begin(), all_nodes.end(),
-	  back_inserter(keys_and_doors),
-	  [](const MazeNode& n){
-	    return n.val != '.';
-	  });
-  return keys_and_doors;
-}
-
-// struct NodePath {
-//   vector<MazeNode> path;
-//   set<char> required_keys;
-// };
-using NodePaths = unordered_map<char,unordered_map<char,vector<char>>>;
-
-NodePaths maze_all_paths(const Graph<MazeNode>& maze) {
-  NodePaths node_to_node_path;
-  vector<MazeNode> keys_and_doors { maze_all_keys_and_doors(maze) };
-
-
-  for(int i=0; i<keys_and_doors.size(); i++) {
-    for(int j=i+1; j<keys_and_doors.size(); j++) {
-      const auto from = keys_and_doors[i];
-      const auto to = keys_and_doors[j];
-
-      const auto from_to = breadth_first_search(maze, from, to);
-
-      vector<char> from_to_char;
-
-      transform(from_to.begin(), from_to.end(),
-		back_inserter(from_to_char),
-		[](const MazeNode n) {
-		  return n.val;
-		});
-
-      auto reversed = from_to_char;
-      reverse(reversed.begin(), reversed.end());
-
-      node_to_node_path[from.val][to.val] = move(from_to_char);
-      node_to_node_path[to.val][from.val] = move(reversed);
+    for(auto n : all_nodes) {
+      coord_to_node[make_pair(n.x, n.y)] = n;
     }
-  }
 
-  return node_to_node_path;
-}
+    Graph<MazeNode> g;
 
-bool is_door_node(char node_val) {
-  return isupper(node_val);
-}
+    for(const auto n : all_nodes) {
+      g.add(n);
+      static const vector<pair<int,int>> neighbours {{-1,0},{0, -1}, {1,0}, {0,1}};
 
-bool is_key_node(char node_val) {
-  return islower(node_val);
-}
-
-vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
-				MazeNode root) {
-  // This function uses modified dijkstra
-
-
-  struct maze_position{
-    maze_position() {}
-
-    maze_position(const char at_key,
-		  const bitset<64> collected_keys)
-      : at_key{at_key},
-	collected_keys{collected_keys} {
+      for(auto neigh : neighbours) {
+	const auto adj = coord_to_node.find(make_pair(n.x + neigh.first,
+						      n.y + neigh.second));
+	if(adj==coord_to_node.end()) {
+	  continue;
 	}
-    char at_key;
-    bitset<64> collected_keys;
-
-    bool operator==(const maze_position& position) const {
-      return at_key == position.at_key
-	&& collected_keys == position.collected_keys;
+	g.add_adjacency(n, adj->second);
+      }
     }
 
-    struct hash {
-      std::size_t operator()(const maze_position& position) const noexcept {
-	// from https://stackoverflow.com/questions/17016175/c-unordered-map-using-a-custom-class-type-as-the-key
+    return g; // TODO is this a move or a copy?
+  }
 
-	size_t res = 17;
-	res = res * 31 + std::hash<char>{}(position.at_key);
-	res = res * 31 + std::hash<bitset<64>>{}(position.collected_keys);
 
-	return res;
+
+
+
+  int main2() {
+    //   Graph<int> g;
+
+    //   g.add(1);
+
+    //   g.add_adjacency(1, 10);
+    //   g.add_adjacency(1, 12);
+
+    //   for(auto x : g.adjacencies(1)) {
+    //     cout << x << endl;
+    //   }
+  }
+
+
+  vector<MazeNode> maze_all_keys_and_doors(const Graph<MazeNode>& maze) {
+    vector<MazeNode> keys_and_doors;
+
+    const auto all_nodes = maze.nodes();
+
+    copy_if(all_nodes.begin(), all_nodes.end(),
+	    back_inserter(keys_and_doors),
+	    [](const MazeNode& n){
+	      return n.val != '.';
+	    });
+    return keys_and_doors;
+  }
+
+  // struct NodePath {
+  //   vector<MazeNode> path;
+  //   set<char> required_keys;
+  // };
+  using NodePaths = unordered_map<char,unordered_map<char,vector<char>>>;
+
+  NodePaths maze_all_paths(const Graph<MazeNode>& maze) {
+    NodePaths node_to_node_path;
+    vector<MazeNode> keys_and_doors { maze_all_keys_and_doors(maze) };
+
+
+    for(int i=0; i<keys_and_doors.size(); i++) {
+      for(int j=i+1; j<keys_and_doors.size(); j++) {
+	const auto from = keys_and_doors[i];
+	const auto to = keys_and_doors[j];
+
+	const auto from_to = breadth_first_search(maze, from, to);
+
+	vector<char> from_to_char;
+
+	transform(from_to.begin(), from_to.end(),
+		  back_inserter(from_to_char),
+		  [](const MazeNode n) {
+		    return n.val;
+		  });
+
+	auto reversed = from_to_char;
+	reverse(reversed.begin(), reversed.end());
+
+	node_to_node_path[from.val][to.val] = move(from_to_char);
+	node_to_node_path[to.val][from.val] = move(reversed);
+      }
+    }
+
+    return node_to_node_path;
+  }
+
+  bool is_door_node(char node_val) {
+    return isupper(node_val);
+  }
+
+  bool is_key_node(char node_val) {
+    return islower(node_val);
+  }
+
+  vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
+				  MazeNode root) {
+    // This function uses modified dijkstra
+
+
+    struct maze_position{
+      maze_position() {}
+
+      maze_position(const char at_key,
+		    const bitset<64> collected_keys)
+	: at_key{at_key},
+	  collected_keys{collected_keys} {
+	  }
+      char at_key;
+      bitset<64> collected_keys;
+
+      bool operator==(const maze_position& position) const {
+	return at_key == position.at_key
+	  && collected_keys == position.collected_keys;
+      }
+
+      struct hash {
+	std::size_t operator()(const maze_position& position) const noexcept {
+	  // from https://stackoverflow.com/questions/17016175/c-unordered-map-using-a-custom-class-type-as-the-key
+
+	  size_t res = 17;
+	  res = res * 31 + std::hash<char>{}(position.at_key);
+	  res = res * 31 + std::hash<bitset<64>>{}(position.collected_keys);
+
+	  return res;
+	}
+      };
+    };
+
+    class key_bitset_encoding {
+      unordered_map<char,bitset<64>> key_to_bit_mask;
+      bitset<64> keys_complete;
+    public:
+      key_bitset_encoding(const Graph<MazeNode>& maze) {
+	const auto all_keys = maze_all_keys_and_doors(maze);
+
+	if(all_keys.size()>64) {
+	  throw invalid_argument("Cannot solve maze with more than 64 keys");
+	}
+
+	unsigned long bit_idx=0;
+
+	for(auto key : all_keys) {
+	  // can we leave bit_idx in this scope?
+	  key_to_bit_mask[key.val].set(bit_idx);
+
+	  if(is_key_node(key.val)) {
+	    keys_complete.set(bit_idx);
+	  }
+
+	  bit_idx++;
+	}
+      }
+
+      bitset<64> operator[](const char key) const{
+	const auto res = key_to_bit_mask.find(key);
+	if(res == key_to_bit_mask.end()) {
+	  return 0;
+	}
+	return res->second;
+      }
+
+      bool is_all_keys(bitset<64> collected_keys) const {
+	return (collected_keys & keys_complete) == keys_complete;
       }
     };
-  };
 
-  class key_bitset_encoding {
-    unordered_map<char,bitset<64>> key_to_bit_mask;
-    bitset<64> keys_complete;
-  public:
-    key_bitset_encoding(const Graph<MazeNode>& maze) {
-      const auto all_keys = maze_all_keys_and_doors(maze);
+    unordered_map<char,MazeNode> key_to_node;
 
-      if(all_keys.size()>64) {
-	throw invalid_argument("Cannot solve maze with more than 64 keys");
-      }
-
-      unsigned long bit_idx=0;
-
-      for(auto key : all_keys) {
-	// can we leave bit_idx in this scope?
-	key_to_bit_mask[key.val].set(bit_idx);
-
-	if(is_key_node(key.val)) {
-	  keys_complete.set(bit_idx);
-	}
-
-	bit_idx++;
-      }
+    for(auto key : maze_all_keys_and_doors(maze)) {
+      key_to_node[key.val] = key;
     }
 
-    bitset<64> operator[](const char key) const{
-      const auto res = key_to_bit_mask.find(key);
-      if(res == key_to_bit_mask.end()) {
-	return 0;
-      }
-      return res->second;
-    }
+    auto node_to_node_path =
+      measure("all_paths",
+	      [&maze]() {
+		return maze_all_paths(maze);
+	      });
 
-    bool is_all_keys(bitset<64> collected_keys) const {
-      return (collected_keys & keys_complete) == keys_complete;
-    }
-  };
+    key_bitset_encoding key_encoding{maze};
+    unordered_map<maze_position,int,maze_position::hash> weights;
+    const auto node_comparer = [&weights](const maze_position n1,
+					  const maze_position n2) {
+				 return weights[n1] > weights[n2];};
+    priority_queue<maze_position,
+		   vector<maze_position>, // is there a way to use the default second when we need to specify a third?
+		   decltype(node_comparer) > dijkstra_queue(node_comparer);
 
-  unordered_map<char,MazeNode> key_to_node;
-
-  for(auto key : maze_all_keys_and_doors(maze)) {
-    key_to_node[key.val] = key;
-  }
-
-  auto node_to_node_path =
-    measure("all_paths",
-	    [&maze]() {
-	      return maze_all_paths(maze);
-	    });
-
-  key_bitset_encoding key_encoding{maze};
-  unordered_map<maze_position,int,maze_position::hash> weights;
-  const auto node_comparer = [&weights](const maze_position n1,
-					const maze_position n2) {
-			       return weights[n1] > weights[n2];};
-  priority_queue<maze_position,
-		 vector<maze_position>, // is there a way to use the default second when we need to specify a third?
-		 decltype(node_comparer) > dijkstra_queue(node_comparer);
-
-  const maze_position root_node {root.val, key_encoding['@']};
-  dijkstra_queue.push(root_node);
-  weights[root_node]= 0;
+    const maze_position root_node {root.val, key_encoding['@']};
+    dijkstra_queue.push(root_node);
+    weights[root_node]= 0;
 
 
-  unordered_map<char, unordered_map<char, bitset<64>>> path_required_keys;
-  unordered_map<char, unordered_map<char, bitset<64>>> path_keys;
+    unordered_map<char, unordered_map<char, bitset<64>>> path_required_keys;
+    unordered_map<char, unordered_map<char, bitset<64>>> path_keys;
 
-  measure("generate path keys",
-	  [&node_to_node_path,&path_required_keys, &path_keys,&key_encoding]() {
-	    for(auto from_node : node_to_node_path) {
-	      for(auto to_node : from_node.second) {
-		for(auto node : to_node.second) {
-		  path_keys[from_node.first][to_node.first]
-		    |= key_encoding[node];
+    measure("generate path keys",
+	    [&node_to_node_path,&path_required_keys, &path_keys,&key_encoding]() {
+	      for(auto from_node : node_to_node_path) {
+		for(auto to_node : from_node.second) {
+		  for(auto node : to_node.second) {
+		    path_keys[from_node.first][to_node.first]
+		      |= key_encoding[node];
 
-		  if(is_door_node(node)) {
-		    path_required_keys[from_node.first][to_node.first] |= key_encoding[tolower(node)];
+		    if(is_door_node(node)) {
+		      path_required_keys[from_node.first][to_node.first] |= key_encoding[tolower(node)];
+		    }
 		  }
 		}
 	      }
-	    }
-	    return 0;
-	  });
+	      return 0;
+	    });
 
-  const int max_iterations = 10000000;
-  int limit = max_iterations;
+    const int max_iterations = 10000000;
+    int limit = max_iterations;
 
-  MazeNode::map<MazeNode> parents;
-  while(true) {
-    if(limit--==0) {
-      throw domain_error("reached limit");
-    }
-
-    if(dijkstra_queue.empty()) {
-      break;
-    }
-
-    auto current_node = dijkstra_queue.top();
-    dijkstra_queue.pop();
-
-    if(key_encoding.is_all_keys(current_node.collected_keys)) {
-      cout << "All done! " << weights[current_node] << " " << current_node.collected_keys << endl;
-      cout << "Took " << max_iterations - limit << " iterations" <<endl;
-      return vector<MazeNode>();
-    }
-
-    const auto my_weight = weights[current_node];
-
-    for(const auto& adjacent : node_to_node_path[current_node.at_key]) {
-      const auto adj_node = adjacent.first;
-      const auto path = adjacent.second;
-
-      if(!is_key_node(adj_node)) {
-	continue;
+    MazeNode::map<MazeNode> parents;
+    while(true) {
+      if(limit--==0) {
+	throw domain_error("reached limit");
       }
 
-      const auto required_keys = path_required_keys[current_node.at_key][adj_node];
-      if((current_node.collected_keys & required_keys) != required_keys) {
-	continue;
+      if(dijkstra_queue.empty()) {
+	break;
       }
 
-      const auto distance = path.size()-1;
-      const maze_position nck(adj_node,
-			      current_node.collected_keys |
-			      path_keys[current_node.at_key][adj_node]);
+      auto current_node = dijkstra_queue.top();
+      dijkstra_queue.pop();
 
-      const auto adj_weight = weights.find(nck);
+      if(key_encoding.is_all_keys(current_node.collected_keys)) {
+	cout << "All done! " << weights[current_node] << " " << current_node.collected_keys << endl;
+	cout << "Took " << max_iterations - limit << " iterations" <<endl;
+	return vector<MazeNode>();
+      }
 
-      if(adj_weight == weights.end() ||
-	 (my_weight + distance) < adj_weight->second) {
-	parents[key_to_node[adj_node]] = key_to_node[current_node.at_key];
-	weights[nck] = my_weight + distance;
-	dijkstra_queue.push(nck);
+      const auto my_weight = weights[current_node];
+
+      for(const auto& adjacent : node_to_node_path[current_node.at_key]) {
+	const auto adj_node = adjacent.first;
+	const auto path = adjacent.second;
+
+	if(!is_key_node(adj_node)) {
+	  continue;
+	}
+
+	const auto required_keys = path_required_keys[current_node.at_key][adj_node];
+	if((current_node.collected_keys & required_keys) != required_keys) {
+	  continue;
+	}
+
+	const auto distance = path.size()-1;
+	const maze_position nck(adj_node,
+				current_node.collected_keys |
+				path_keys[current_node.at_key][adj_node]);
+
+	const auto adj_weight = weights.find(nck);
+
+	if(adj_weight == weights.end() ||
+	   (my_weight + distance) < adj_weight->second) {
+	  parents[key_to_node[adj_node]] = key_to_node[current_node.at_key];
+	  weights[nck] = my_weight + distance;
+	  dijkstra_queue.push(nck);
+	}
       }
     }
+
+    throw domain_error("Couldn't find path");
   }
-
-  throw domain_error("Couldn't find path");
-}
 }
 
 int main() {

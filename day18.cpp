@@ -363,24 +363,6 @@ namespace maze {
     return g; // TODO is this a move or a copy?
   }
 
-
-
-
-
-  int main2() {
-    //   Graph<int> g;
-
-    //   g.add(1);
-
-    //   g.add_adjacency(1, 10);
-    //   g.add_adjacency(1, 12);
-
-    //   for(auto x : g.adjacencies(1)) {
-    //     cout << x << endl;
-    //   }
-  }
-
-
   vector<MazeNode> maze_all_keys_and_doors(const Graph<MazeNode>& maze) {
     vector<MazeNode> keys_and_doors;
 
@@ -394,10 +376,6 @@ namespace maze {
     return keys_and_doors;
   }
 
-  // struct NodePath {
-  //   vector<MazeNode> path;
-  //   set<char> required_keys;
-  // };
   using NodePaths = unordered_map<char,unordered_map<char,vector<char>>>;
 
   NodePaths maze_all_paths(const Graph<MazeNode>& maze) {

@@ -145,11 +145,11 @@ vector<string> split_lines2(const string& input) {
 
 template<typename F>
 auto measure(string label, F f) -> decltype(f()){
-  auto before = high_resolution_clock::now();
+  const auto before = high_resolution_clock::now();
 
-  auto result = f();
+  const auto result = f();
 
-  auto after = high_resolution_clock::now();
+  const auto after = high_resolution_clock::now();
 
   cout << "Timing `" << label << "`: "
        << duration_cast<microseconds>(after - before).count()
@@ -161,6 +161,7 @@ auto measure(string label, F f) -> decltype(f()){
 
 template<typename Container, typename FilterFn>
 Container filter(const Container& s, const FilterFn f) {
+  // I guess this is an anti pattern as otherwise it would be in STL...?
   Container res;
 
   copy_if(s.begin(), s.end(), back_inserter(res), f);
@@ -373,7 +374,6 @@ namespace maze {
     NodePaths node_to_node_path;
     vector<MazeNode> keys_and_doors { maze_all_keys_and_doors(maze) };
 
-
     for(int i=0; i<keys_and_doors.size(); i++) {
       for(int j=i+1; j<keys_and_doors.size(); j++) {
 	const auto from = keys_and_doors[i];
@@ -410,7 +410,6 @@ namespace maze {
 
   struct maze_position{
     maze_position() {}
-
     maze_position(const char at_key,
 		  const bitset<64> collected_keys)
       : at_key{at_key},
@@ -523,7 +522,6 @@ namespace maze {
     }
 
   public:
-
     path_finder(const Graph<MazeNode>& maze) :
       key_encoding{maze},
       node_to_node_path {maze_all_paths(maze)}
@@ -655,10 +653,9 @@ int main() {
 
   cout << "All done, steps: " << result.steps << ", iterations: " << result.iterations << endl;
 
-  auto& steps =result.path;
-
+  cout << "Path taken:" << endl;
   int i=0;
-  for(auto s : steps) {
+  for(auto s : result.path) {
     cout << i++ << " " << s << endl;
   }
 }
@@ -672,3 +669,5 @@ int main() {
 // copy/move defaults
 // named tuples
 // class initializer syntax? SolveMazeResult { steps=12, etc }
+// for(auto i : ...) some way to keep a counter?
+// making `maze_position` const

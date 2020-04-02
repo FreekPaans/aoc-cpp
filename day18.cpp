@@ -384,15 +384,6 @@ NodePaths maze_all_paths(const Graph<MazeNode>& maze) {
 
       const auto from_to = breadth_first_search(maze, from, to);
 
-      // auto required_keys = std::accumulate(from_to.begin(), from_to.end(),
-      // 					   set<char>(),
-      // 					   [](set<char>& s, const MazeNode &n) {
-      // 					     if(isupper(n.val)) {
-      // 					       s.insert(tolower(n.val));
-      // 					     }
-      // 					     return s;
-      // 					   });
-
       vector<char> from_to_char;
 
       transform(from_to.begin(), from_to.end(),
@@ -405,10 +396,7 @@ NodePaths maze_all_paths(const Graph<MazeNode>& maze) {
       reverse(reversed.begin(), reversed.end());
 
       node_to_node_path[from.val][to.val] = move(from_to_char);
-      // node_to_node_path[from][to].required_keys = required_keys;
-
       node_to_node_path[to.val][from.val] = move(reversed);
-      // node_to_node_path[to][from].required_keys = required_keys;
     }
   }
 
@@ -443,7 +431,7 @@ vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
 				MazeNode root) {
   // This function uses modified dijkstra
 
-  // todo recheck weight in prio-queue
+
   struct maze_position{
     maze_position() {}
 
@@ -524,25 +512,18 @@ vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
 	    });
 
   key_bitset_encoding key_encoding{maze};
-
-  maze_position root_node {root.val, key_encoding['@']};
-  unordered_map<maze_position,int,maze_position::hash> weights {{root_node, 0}};
-
-  //todo try non-ref
-  auto compare_nodes = [&weights](const maze_position& n1,
-				  const maze_position& n2) {
-			 return weights[n1] > weights[n2];
-		       };
-  // todo can we not explicitly provide the second template argument (vector<Node>)?
+  unordered_map<maze_position,int,maze_position::hash> weights;
+  const auto node_comparer = [&weights](const maze_position n1,
+					const maze_position n2) {
+			       return weights[n1] > weights[n2];};
   priority_queue<maze_position,
-		 vector<maze_position>,
-		 decltype(compare_nodes) >
-    dijkstra_queue(compare_nodes);
+		 vector<maze_position>, // is there a way to use the default second when we need to specify a third?
+		 decltype(node_comparer) > dijkstra_queue(node_comparer);
 
+  const maze_position root_node {root.val, key_encoding['@']};
   dijkstra_queue.push(root_node);
+  weights[root_node]= 0;
 
-  const int max_iterations = 10000000;
-  int limit = max_iterations;
 
   unordered_map<char, unordered_map<char, bitset<64>>> path_required_keys;
   unordered_map<char, unordered_map<char, bitset<64>>> path_keys;
@@ -563,6 +544,9 @@ vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
 	    }
 	    return 0;
 	  });
+
+  const int max_iterations = 10000000;
+  int limit = max_iterations;
 
   MazeNode::map<MazeNode> parents;
   while(true) {
@@ -657,3 +641,7 @@ int main() {
     cout << i++ << " " << s << endl;
   }
 }
+
+// map with const subscript operator?
+// how to ergonomic map/filter operations? (LINQ?)
+// easier way to specify hash functions?

@@ -175,6 +175,11 @@ public:
   }
 };
 
+ostream& operator<<(ostream& o, const MazeNode& n) {
+  o << n.x << "," << n.y << " => " << n.val;
+  return o;
+}
+
 template<typename Container, typename FilterFn>
 Container filter(const Container& s, const FilterFn f) {
   Container res;
@@ -267,7 +272,8 @@ Graph<MazeNode> parse_maze(const string& input) {
     const vector<pair<int,int>> neighbours {{-1,0},{0, -1}, {1,0}, {0,1}};
 
     for(auto neigh : neighbours) {
-      auto adj = coord_to_node.find(make_pair(n.x + neigh.first, n.y + neigh.second));
+      const auto adj = coord_to_node.find(make_pair(n.x + neigh.first,
+						    n.y + neigh.second));
       if(adj==coord_to_node.end()) {
 	continue;
       }
@@ -279,7 +285,7 @@ Graph<MazeNode> parse_maze(const string& input) {
 }
 
 vector<MazeNode> recover_path(const MazeNode::map<MazeNode> parents,
-			  MazeNode from, MazeNode to) {
+			      const MazeNode from, const MazeNode to) {
   vector<MazeNode> res;
 
   MazeNode next = to;
@@ -288,7 +294,7 @@ vector<MazeNode> recover_path(const MazeNode::map<MazeNode> parents,
     if(next == from) {
       break;
     }
-    auto entry = parents.find(next);
+    const auto entry = parents.find(next);
 
     if(entry==parents.end()) {
       throw domain_error("Cannot find node");
@@ -302,32 +308,31 @@ vector<MazeNode> recover_path(const MazeNode::map<MazeNode> parents,
 }
 
 vector<MazeNode> breadth_first_search(const Graph<MazeNode>& g,
-				  const MazeNode from,
-				  const MazeNode to) {
-  queue<MazeNode> next;
-  MazeNode::set seen;
+				      const MazeNode from,
+				      const MazeNode to) {
+  queue<MazeNode> next_nodes;
+  MazeNode::set seen_nodes;
   MazeNode::map<MazeNode> parents;
 
-  next.push(from);
-
   parents[from] = from;
+  next_nodes.push(from);
 
-  while(!next.empty()) {
-    auto nextNode = next.front();
-    next.pop();
+  while(!next_nodes.empty()) {
+    const auto next_node = next_nodes.front();
+    next_nodes.pop();
 
-    if(to == nextNode) {
+    if(to == next_node) {
       return recover_path(parents, from ,to);
     }
 
-    seen.insert(nextNode);
+    seen_nodes.insert(next_node);
 
-    for(auto adjacent : g.adjacencies(nextNode)) {
-      if(seen.find(adjacent)!=seen.end()) {
+    for(const auto adjacent : g.adjacencies(next_node)) {
+      if(seen_nodes.find(adjacent)!=seen_nodes.end()) {
 	continue;
       }
-      parents[adjacent] = nextNode;
-      next.push(adjacent);
+      parents[adjacent] = next_node;
+      next_nodes.push(adjacent);
     }
   }
 
@@ -335,23 +340,19 @@ vector<MazeNode> breadth_first_search(const Graph<MazeNode>& g,
 }
 
 int main2() {
-//   Graph<int> g;
+  //   Graph<int> g;
 
-//   g.add(1);
+  //   g.add(1);
 
-//   g.add_adjacency(1, 10);
-//   g.add_adjacency(1, 12);
+  //   g.add_adjacency(1, 10);
+  //   g.add_adjacency(1, 12);
 
-//   for(auto x : g.adjacencies(1)) {
-//     cout << x << endl;
-//   }
+  //   for(auto x : g.adjacencies(1)) {
+  //     cout << x << endl;
+  //   }
   
 }
 
-ostream& operator<<(ostream& o, const MazeNode& n) {
-  o << n.x << "," << n.y << " => " << n.val;
-  return o;
-}
 
 vector<MazeNode> maze_all_nodes(const Graph<MazeNode>& maze) {
   const auto all_nodes {
@@ -422,7 +423,7 @@ auto measure(string label, F f) -> decltype(f()){
 }
 
 vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
-			    MazeNode root) {
+				MazeNode root) {
   // This function uses modified dijkstra
 
   // todo recheck weight in prio-queue
@@ -598,16 +599,16 @@ int main() {
   const auto all_nodes = maze_all_nodes(maze);
 
   const auto root = *find_if(all_nodes.begin(), all_nodes.end(),
-			    [](const MazeNode& n) {
-			      return n.val == '@';
-			    });
+			     [](const MazeNode& n) {
+			       return n.val == '@';
+			     });
 
 
   cout << "Root: " << root << endl;
 
   auto steps =
     measure("all steps", [&maze,&root]() {
-    return find_min_steps(maze, root);
+			   return find_min_steps(maze, root);
 			 });
 
   cout << "Steps: "<< steps.size() << endl;

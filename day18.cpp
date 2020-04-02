@@ -198,48 +198,110 @@ Container filter_set(const Container&& s, const FilterFn f) {
   return res;
 };
 
-template<typename Node>
-class Graph {
-  typename Node::template map<typename Node::set> _adjacancies;
+namespace graph {
 
-  void assert_has_node(const Node n) const{
-    if(_adjacancies.find(n) == _adjacancies.end()) {
-      throw out_of_range("Node not known");
+  template<typename Node>
+  class Graph {
+    typename Node::template map<typename Node::set> _adjacancies;
+
+    void assert_has_node(const Node n) const{
+      if(_adjacancies.find(n) == _adjacancies.end()) {
+	throw out_of_range("Node not known");
+      }
     }
-  }
 
-public:
-  Graph() {
-  }
-
-  Graph& add(const Node n) {
-    if(_adjacancies.find(n) != _adjacancies.end()) {
-      throw invalid_argument("Node already exists");
+  public:
+    Graph() {
     }
-    _adjacancies[n] = typename Node::set();
-    return *this;
-  }
 
-  Graph& add_adjacency(const Node for_node, const Node adjacency) {
-    assert_has_node(for_node);
-
-    _adjacancies[for_node].insert(adjacency);
-    return *this;
-  }
-
-  typename Node::set nodes() const {
-    typename Node::set res;
-    for(auto n : _adjacancies) {
-      res.insert(n.first);
+    Graph& add(const Node n) {
+      if(_adjacancies.find(n) != _adjacancies.end()) {
+	throw invalid_argument("Node already exists");
+      }
+      _adjacancies[n] = typename Node::set();
+      return *this;
     }
+
+    Graph& add_adjacency(const Node for_node, const Node adjacency) {
+      assert_has_node(for_node);
+
+      _adjacancies[for_node].insert(adjacency);
+      return *this;
+    }
+
+    typename Node::set nodes() const {
+      typename Node::set res;
+      for(auto n : _adjacancies) {
+	res.insert(n.first);
+      }
+      return res;
+    }
+
+    const typename Node::set& adjacencies(const Node for_node) const {
+      assert_has_node(for_node);
+      return _adjacancies.find(for_node)->second;
+    }
+  };
+
+  template <typename Node>
+  vector<Node> recover_path(const typename Node::template map<Node> parents,
+			    const Node from, const Node to) {
+    vector<Node> res;
+
+    Node next = to;
+    while(true) {
+      res.push_back(next);
+      if(next == from) {
+	break;
+      }
+      const auto entry = parents.find(next);
+
+      if(entry==parents.end()) {
+	throw domain_error("Cannot find node");
+      }
+      next = entry->second;
+    }
+
+    reverse(res.begin(), res.end());
+
     return res;
   }
 
-  const typename Node::set& adjacencies(const Node for_node) const {
-    assert_has_node(for_node);
-    return _adjacancies.find(for_node)->second;
+  template <typename Node>
+  vector<Node> breadth_first_search(const Graph<Node>& g,
+				    const Node from,
+				    const Node to) {
+    queue<Node> next_nodes;
+    typename Node::set seen_nodes;
+    typename Node::template map<Node> parents;
+
+    parents[from] = from;
+    next_nodes.push(from);
+
+    while(!next_nodes.empty()) {
+      const auto next_node = next_nodes.front();
+      next_nodes.pop();
+
+      if(to == next_node) {
+	return recover_path(parents, from ,to);
+      }
+
+      seen_nodes.insert(next_node);
+
+      for(const auto adjacent : g.adjacencies(next_node)) {
+	if(seen_nodes.find(adjacent)!=seen_nodes.end()) {
+	  continue;
+	}
+	parents[adjacent] = next_node;
+	next_nodes.push(adjacent);
+      }
+    }
+
+    throw domain_error("Couldn't find route");
   }
-};
+}
+
+using namespace graph;
 
 Graph<MazeNode> parse_maze(const string& input) {
   vector<MazeNode> all_nodes;
@@ -284,62 +346,9 @@ Graph<MazeNode> parse_maze(const string& input) {
   return g; // TODO is this a move or a copy?
 }
 
-template <typename Node>
-vector<Node> recover_path(const typename Node::template map<Node> parents,
-			      const Node from, const Node to) {
-  vector<Node> res;
 
-  Node next = to;
-  while(true) {
-    res.push_back(next);
-    if(next == from) {
-      break;
-    }
-    const auto entry = parents.find(next);
 
-    if(entry==parents.end()) {
-      throw domain_error("Cannot find node");
-    }
-    next = entry->second;
-  }
 
-  reverse(res.begin(), res.end());
-
-  return res;
-}
-
-template <typename Node>
-vector<Node> breadth_first_search(const Graph<Node>& g,
-				      const Node from,
-				      const Node to) {
-  queue<Node> next_nodes;
-  typename Node::set seen_nodes;
-  typename Node::template map<Node> parents;
-
-  parents[from] = from;
-  next_nodes.push(from);
-
-  while(!next_nodes.empty()) {
-    const auto next_node = next_nodes.front();
-    next_nodes.pop();
-
-    if(to == next_node) {
-      return recover_path(parents, from ,to);
-    }
-
-    seen_nodes.insert(next_node);
-
-    for(const auto adjacent : g.adjacencies(next_node)) {
-      if(seen_nodes.find(adjacent)!=seen_nodes.end()) {
-	continue;
-      }
-      parents[adjacent] = next_node;
-      next_nodes.push(adjacent);
-    }
-  }
-
-  throw domain_error("Couldn't find route");
-}
 
 int main2() {
   //   Graph<int> g;

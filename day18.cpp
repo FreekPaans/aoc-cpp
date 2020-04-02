@@ -143,6 +143,23 @@ vector<string> split_lines2(const string& input) {
   return res;
 }
 
+template<typename F>
+auto measure(string label, F f) -> decltype(f()){
+  auto before = high_resolution_clock::now();
+
+  auto result = f();
+
+  auto after = high_resolution_clock::now();
+
+  cout << "Timing " << label << ": "
+       << duration_cast<microseconds>(after - before).count()
+       << "us"
+       << endl;
+
+  return result;
+}
+
+
 class MazeNode {
 public:
   struct MazeNodeHash
@@ -301,6 +318,7 @@ namespace graph {
   }
 }
 
+namespace maze {
 using namespace graph;
 
 Graph<MazeNode> parse_maze(const string& input) {
@@ -412,22 +430,6 @@ NodePaths maze_all_paths(const Graph<MazeNode>& maze) {
   }
 
   return node_to_node_path;
-}
-
-template<typename F>
-auto measure(string label, F f) -> decltype(f()){
-  auto before = high_resolution_clock::now();
-
-  auto result = f();
-
-  auto after = high_resolution_clock::now();
-
-  cout << "Timing " << label << ": "
-       << duration_cast<microseconds>(after - before).count()
-       << "us"
-       << endl;
-
-  return result;
 }
 
 bool is_door_node(char node_val) {
@@ -611,6 +613,7 @@ vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
 
   throw domain_error("Couldn't find path");
 }
+}
 
 int main() {
   auto input = pt1_real_input;
@@ -621,16 +624,16 @@ int main() {
   const auto maze =
     measure("parse_maze",
 	    [&input]() {
-	      return parse_maze(input);
+	      return maze::parse_maze(input);
 	    });
 
   auto node_to_node_path =
     measure("all_paths",
 	    [&maze]() {
-	      return maze_all_paths(maze);
+	      return maze::maze_all_paths(maze);
 	    });
 
-  const auto all_nodes = maze_all_keys_and_doors(maze);
+  const auto all_nodes = maze::maze_all_keys_and_doors(maze);
 
   const auto root = *find_if(all_nodes.begin(), all_nodes.end(),
 			     [](const MazeNode& n) {
@@ -642,7 +645,7 @@ int main() {
 
   auto steps =
     measure("all steps", [&maze,&root]() {
-			   return find_min_steps(maze, root);
+			   return maze::find_min_steps(maze, root);
 			 });
 
   cout << "Steps: "<< steps.size() << endl;

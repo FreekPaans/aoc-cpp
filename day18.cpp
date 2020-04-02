@@ -444,32 +444,34 @@ vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
   // This function uses modified dijkstra
 
   // todo recheck weight in prio-queue
-  struct node_collected_keys{
-    node_collected_keys() {}
+  struct maze_position{
+    maze_position() {}
 
-    node_collected_keys(const char key,
-			const bitset<64> collected_keys)
-      : key{key},
+    maze_position(const char at_key,
+		  const bitset<64> collected_keys)
+      : at_key{at_key},
 	collected_keys{collected_keys} {
 	}
-    char key;
+    char at_key;
     bitset<64> collected_keys;
 
-    bool operator==(const node_collected_keys& nck) const {
-      return key == nck.key && collected_keys == nck.collected_keys;
+    bool operator==(const maze_position& position) const {
+      return at_key == position.at_key
+	&& collected_keys == position.collected_keys;
     }
-  };
 
-  struct hash {
-    std::size_t operator()(const node_collected_keys& n) const noexcept {
-      // from https://stackoverflow.com/questions/17016175/c-unordered-map-using-a-custom-class-type-as-the-key
+    struct hash {
+      std::size_t operator()(const maze_position& position) const noexcept {
+	// from https://stackoverflow.com/questions/17016175/c-unordered-map-using-a-custom-class-type-as-the-key
 
-      size_t res = 17;
-      res = res * 31 + std::hash<char>{}(n.key);
-      res = res * 31 + std::hash<bitset<64>>{}(n.collected_keys);
+	size_t res = 17;
+	res = res * 31 + std::hash<char>{}(position.at_key);
+	res = res * 31 + std::hash<bitset<64>>{}(position.collected_keys);
 
-      return res;
-    }
+	return res;
+      }
+    };
+
   };
 
   auto node_to_node_path =
@@ -500,17 +502,17 @@ vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
     bit_idx++;
   }
 
-  node_collected_keys root_node {root.val, key_encoding['@']};
-  unordered_map<node_collected_keys,int,hash> weights {{root_node, 0}};
+  maze_position root_node {root.val, key_encoding['@']};
+  unordered_map<maze_position,int,maze_position::hash> weights {{root_node, 0}};
 
   //todo try non-ref
-  auto compare_nodes = [&weights](const node_collected_keys& n1,
-				  const node_collected_keys& n2) {
+  auto compare_nodes = [&weights](const maze_position& n1,
+				  const maze_position& n2) {
 			 return weights[n1] > weights[n2];
 		       };
   // todo can we not explicitly provide the second template argument (vector<Node>)?
-  priority_queue<node_collected_keys,
-		 vector<node_collected_keys>,
+  priority_queue<maze_position,
+		 vector<maze_position>,
 		 decltype(compare_nodes) >
     dijkstra_queue(compare_nodes);
 
@@ -560,7 +562,7 @@ vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
 
     const auto my_weight = weights[current_node];
 
-    for(const auto& adjacent : node_to_node_path[current_node.key]) {
+    for(const auto& adjacent : node_to_node_path[current_node.at_key]) {
       const auto adj_node = adjacent.first;
       const auto path = adjacent.second;
 
@@ -568,21 +570,21 @@ vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
 	continue;
       }
 
-      const auto required_keys = path_required_keys[current_node.key][adj_node];
+      const auto required_keys = path_required_keys[current_node.at_key][adj_node];
       if((current_node.collected_keys & required_keys) != required_keys) {
 	continue;
       }
 
       const auto distance = path.size()-1;
-      const node_collected_keys nck(adj_node,
-				    current_node.collected_keys |
-				    path_keys[current_node.key][adj_node]);
+      const maze_position nck(adj_node,
+			      current_node.collected_keys |
+			      path_keys[current_node.at_key][adj_node]);
 
       const auto adj_weight = weights.find(nck);
 
       if(adj_weight == weights.end() ||
 	 (my_weight + distance) < adj_weight->second) {
-	parents[key_to_node[adj_node]] = key_to_node[current_node.key];
+	parents[key_to_node[adj_node]] = key_to_node[current_node.at_key];
 	weights[nck] = my_weight + distance;
 	dijkstra_queue.push(nck);
       }

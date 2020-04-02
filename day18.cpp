@@ -423,6 +423,8 @@ auto measure(string label, F f) -> decltype(f()){
 
 vector<Node> find_min_steps(const Graph<Node>& maze,
 			    Node root) {
+  // This function uses modified dijkstra
+
   // todo recheck weight in prio-queue
   struct node_collected_keys{
     node_collected_keys() {}
@@ -453,14 +455,11 @@ vector<Node> find_min_steps(const Graph<Node>& maze,
   };
 
 
-  // This function uses modified dijkstra
   auto node_to_node_path =
     measure("all_paths",
 	    [&maze]() {
 	      return all_paths(maze);
 	    });
-  
-
 
   const auto all_keys = maze_all_nodes(maze);
 
@@ -503,6 +502,26 @@ vector<Node> find_min_steps(const Graph<Node>& maze,
   const int max_iterations = 10000000;
   int limit = max_iterations;
 
+  unordered_map<char, unordered_map<char, bitset<64>>> path_required_keys;
+  unordered_map<char, unordered_map<char, bitset<64>>> path_keys;
+
+  measure("generate path keys",
+	  [&node_to_node_path,&path_required_keys, &path_keys,&key_encoding]() {
+	    for(auto from_node : node_to_node_path) {
+	      for(auto to_node : from_node.second) {
+		for(auto key : to_node.second.required_keys) {
+		  path_required_keys[from_node.first.val][to_node.first.val] |= key_encoding[key];
+		}
+
+		for(auto node : to_node.second.path) {
+		  path_keys[from_node.first.val][to_node.first.val]
+		    |= key_encoding[node.val];
+		}
+	      }
+	    }
+	    return 0;
+	  });
+
   Node::map<Node> parents;
   while(true) {
     if(limit--==0) {
@@ -516,7 +535,7 @@ vector<Node> find_min_steps(const Graph<Node>& maze,
     smallest_path.pop();
 
     if((smallest.collected_keys & keys_complete) == keys_complete) {
-      cout << "All done! " << weights[smallest] << " " << bitset<64>(smallest.collected_keys) << endl;
+      cout << "All done! " << weights[smallest] << " " << smallest.collected_keys << endl;
       cout << "Took " << max_iterations - limit << " iterations" <<endl;
       return vector<Node>();
     }
@@ -528,22 +547,10 @@ vector<Node> find_min_steps(const Graph<Node>& maze,
 	continue;
       }
 
-      // feel there should be a better way to check if we have all keys...
-      int have_keys=0;
-
-      // TODO: accumulate, already already store
-
-      for(auto required_key : adjacent.second.required_keys) {
-	if((key_encoding[required_key] & smallest.collected_keys) == 0) {
-	  break;
-	}
-	have_keys++;
-      }
-
-      if(have_keys!=adjacent.second.required_keys.size()) {
+      const auto required_keys = path_required_keys[smallest.key][adjacent.first.val];
+      if((smallest.collected_keys & required_keys) != required_keys) {
 	continue;
       }
-
 
       const auto adj_key = adjacent.first.val;
       const auto dist = adjacent.second.path.size()-1;
@@ -553,7 +560,9 @@ vector<Node> find_min_steps(const Graph<Node>& maze,
 	key_builder |= key_encoding[i.val];
       }
       node_collected_keys nck(adj_key,
-			      smallest.collected_keys | key_builder);
+			      smallest.collected_keys |
+			      path_keys[smallest.key][adjacent.first.val]
+			      );
       const auto adj_weight = weights.find(nck);
 
       if(adj_weight == weights.end() ||
@@ -607,31 +616,4 @@ int main() {
   for(auto s : steps) {
     cout << i++ << " " << s << endl;
   }
-
-  
-  // cout << "Node count: " << all_nodes.size() << endl;
-
-  // const auto first = all_nodes[0];
-  // const auto last = all_nodes[all_nodes.size()-1];
-
-  // const auto& node_path = node_to_node_path[first][last];
-  // const auto& steps = node_path.path;
-  // cout << first.val << " - > " << last.val << endl;
-  // for(auto n : steps) {
-  //   cout << n << endl;
-  // }
-
-  // for(auto n : node_to_node_path[last][first].path) {
-  //   cout << n << endl;
-  // }
-
-  // cout << "Keys required:" << endl;
-
-  // for(auto k : node_path.required_keys) {
-  //   cout << k << " ";
-  // }
-  // cout << endl;
-
-  // cout << "Total steps: " << steps.size() << endl;
-  // cout << "Total paths: " << (all_nodes.size() * all_nodes.size() / 2) << endl;
 }

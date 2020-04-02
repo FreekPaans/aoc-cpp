@@ -267,9 +267,9 @@ Graph<MazeNode> parse_maze(const string& input) {
 
   Graph<MazeNode> g;
 
-  for(auto n : all_nodes) {
+  for(const auto n : all_nodes) {
     g.add(n);
-    const vector<pair<int,int>> neighbours {{-1,0},{0, -1}, {1,0}, {0,1}};
+    static const vector<pair<int,int>> neighbours {{-1,0},{0, -1}, {1,0}, {0,1}};
 
     for(auto neigh : neighbours) {
       const auto adj = coord_to_node.find(make_pair(n.x + neigh.first,
@@ -281,14 +281,15 @@ Graph<MazeNode> parse_maze(const string& input) {
     }
   }
 
-  return g;
+  return g; // TODO is this a move or a copy?
 }
 
-vector<MazeNode> recover_path(const MazeNode::map<MazeNode> parents,
-			      const MazeNode from, const MazeNode to) {
-  vector<MazeNode> res;
+template <typename Node>
+vector<Node> recover_path(const typename Node::template map<Node> parents,
+			      const Node from, const Node to) {
+  vector<Node> res;
 
-  MazeNode next = to;
+  Node next = to;
   while(true) {
     res.push_back(next);
     if(next == from) {

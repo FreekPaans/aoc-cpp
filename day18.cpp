@@ -350,20 +350,20 @@ int main2() {
   //   for(auto x : g.adjacencies(1)) {
   //     cout << x << endl;
   //   }
-  
 }
 
 
-vector<MazeNode> maze_all_nodes(const Graph<MazeNode>& maze) {
-  const auto all_nodes {
-    filter_set(maze.nodes(),
-	       [](const MazeNode& n){
-		 return n.val != '.';
-	       })};
+vector<MazeNode> maze_all_keys_and_doors(const Graph<MazeNode>& maze) {
+  vector<MazeNode> keys_and_doors;
 
+  const auto all_nodes = maze.nodes();
 
-  vector<MazeNode> nodes { all_nodes.begin(), all_nodes.end() };
-  return nodes;
+  copy_if(all_nodes.begin(), all_nodes.end(),
+	  back_inserter(keys_and_doors),
+	  [](const MazeNode& n){
+	    return n.val != '.';
+	  });
+  return keys_and_doors;
 }
 
 struct NodePath {
@@ -372,14 +372,14 @@ struct NodePath {
 };
 using NodePaths = MazeNode::map<MazeNode::map<NodePath>>;
 
-NodePaths all_paths(const Graph<MazeNode>& maze) {
+NodePaths maze_all_paths(const Graph<MazeNode>& maze) {
   NodePaths node_to_node_path;
-  vector<MazeNode> all_nodes_v { maze_all_nodes(maze) };
+  vector<MazeNode> keys_and_doors { maze_all_keys_and_doors(maze) };
 
-  for(int i=0; i<all_nodes_v.size(); i++) {
-    for(int j=i+1; j<all_nodes_v.size(); j++) {
-      const auto from = all_nodes_v[i];
-      const auto to = all_nodes_v[j];
+  for(int i=0; i<keys_and_doors.size(); i++) {
+    for(int j=i+1; j<keys_and_doors.size(); j++) {
+      const auto from = keys_and_doors[i];
+      const auto to = keys_and_doors[j];
 
       const auto from_to = breadth_first_search(maze, from, to);
 
@@ -459,10 +459,10 @@ vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
   auto node_to_node_path =
     measure("all_paths",
 	    [&maze]() {
-	      return all_paths(maze);
+	      return maze_all_paths(maze);
 	    });
 
-  const auto all_keys = maze_all_nodes(maze);
+  const auto all_keys = maze_all_keys_and_doors(maze);
 
   unordered_map<char,MazeNode> key_to_node;
   unordered_map<char,bitset<64>> key_encoding;
@@ -593,10 +593,10 @@ int main() {
   auto node_to_node_path =
     measure("all_paths",
 	    [&maze]() {
-	      return all_paths(maze);
+	      return maze_all_paths(maze);
 	    });
 
-  const auto all_nodes = maze_all_nodes(maze);
+  const auto all_nodes = maze_all_keys_and_doors(maze);
 
   const auto root = *find_if(all_nodes.begin(), all_nodes.end(),
 			     [](const MazeNode& n) {

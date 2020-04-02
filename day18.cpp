@@ -431,11 +431,11 @@ auto measure(string label, F f) -> decltype(f()){
   return result;
 }
 
-bool is_door(char node_val) {
+bool is_door_node(char node_val) {
   return isupper(node_val);
 }
 
-bool is_key(char node_val) {
+bool is_key_node(char node_val) {
   return islower(node_val);
 }
 
@@ -530,7 +530,7 @@ vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
 		  path_keys[from_node.first][to_node.first]
 		    |= key_encoding[node];
 
-		  if(is_door(node)) {
+		  if(is_door_node(node)) {
 		    path_required_keys[from_node.first][to_node.first] |= key_encoding[tolower(node)];
 		  }
 		}
@@ -561,28 +561,28 @@ vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
     const auto my_weight = weights[current_node];
 
     for(const auto& adjacent : node_to_node_path[current_node.key]) {
-      const auto adj_key = adjacent.first;
+      const auto adj_node = adjacent.first;
       const auto path = adjacent.second;
 
-      if(!is_key(adj_key)) {
+      if(!is_key_node(adj_node)) {
 	continue;
       }
 
-      const auto required_keys = path_required_keys[current_node.key][adj_key];
+      const auto required_keys = path_required_keys[current_node.key][adj_node];
       if((current_node.collected_keys & required_keys) != required_keys) {
 	continue;
       }
 
       const auto distance = path.size()-1;
-      const node_collected_keys nck(adj_key,
+      const node_collected_keys nck(adj_node,
 				    current_node.collected_keys |
-				    path_keys[current_node.key][adj_key]);
+				    path_keys[current_node.key][adj_node]);
 
       const auto adj_weight = weights.find(nck);
 
       if(adj_weight == weights.end() ||
 	 (my_weight + distance) < adj_weight->second) {
-	parents[key_to_node[adj_key]] = key_to_node[current_node.key];
+	parents[key_to_node[adj_node]] = key_to_node[current_node.key];
 	weights[nck] = my_weight + distance;
 	dijkstra_queue.push(nck);
       }

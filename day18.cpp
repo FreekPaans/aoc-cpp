@@ -428,12 +428,12 @@ vector<Node> find_min_steps(const Graph<Node>& maze,
     node_collected_keys() {}
 
     node_collected_keys(const char key,
-			const long collected_keys)
+			const bitset<64> collected_keys)
       : key{key},
 	collected_keys{collected_keys} {
 	}
     char key;
-    long collected_keys;
+    bitset<64> collected_keys;
 
     bool operator==(const node_collected_keys& nck) const {
       return key == nck.key && collected_keys == nck.collected_keys;
@@ -446,7 +446,7 @@ vector<Node> find_min_steps(const Graph<Node>& maze,
 
       size_t res = 17;
       res = res * 31 + std::hash<char>{}(n.key);
-      res = res * 31 + std::hash<long>{}(n.collected_keys);
+      res = res * 31 + std::hash<bitset<64>>{}(n.collected_keys);
 
       return res;
     }
@@ -459,26 +459,28 @@ vector<Node> find_min_steps(const Graph<Node>& maze,
 	    [&maze]() {
 	      return all_paths(maze);
 	    });
+  
 
-  // const auto all_keys = filter(maze_all_nodes(maze),
-  // 			       [](const Node& n) {
-  // 				 return islower(n.val);
-  // 			       });
 
   const auto all_keys = maze_all_nodes(maze);
 
   unordered_map<char,Node> key_to_node;
-  unordered_map<char,long> key_encoding;
-  long keys_complete=0;
+  unordered_map<char,bitset<64>> key_encoding;
 
+  if(all_keys.size()>64) {
+    throw invalid_argument("Cannot solve maze with more than 64 keys");
+  }
+
+  bitset<64> keys_complete;
   unsigned long bit_idx=0;
+
   for(auto key : all_keys) {
     // can we leave bit_idx in this scope?
     key_to_node[key.val] = key;
     if(islower(key.val)) {
-      keys_complete |= 1L<<bit_idx;
+      keys_complete.set(bit_idx);
     }
-    key_encoding[key.val] = 1L<<bit_idx;
+    key_encoding[key.val].set(bit_idx);
     bit_idx++;
   }
 
@@ -546,7 +548,7 @@ vector<Node> find_min_steps(const Graph<Node>& maze,
       const auto adj_key = adjacent.first.val;
       const auto dist = adjacent.second.path.size()-1;
 
-      long key_builder = 0;
+      bitset<64> key_builder;
       for(auto i : adjacent.second.path) {
 	key_builder |= key_encoding[i.val];
       }

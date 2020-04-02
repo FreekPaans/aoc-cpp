@@ -366,15 +366,16 @@ vector<MazeNode> maze_all_keys_and_doors(const Graph<MazeNode>& maze) {
   return keys_and_doors;
 }
 
-struct NodePath {
-  vector<MazeNode> path;
-  set<char> required_keys;
-};
-using NodePaths = MazeNode::map<MazeNode::map<NodePath>>;
+// struct NodePath {
+//   vector<MazeNode> path;
+//   set<char> required_keys;
+// };
+using NodePaths = unordered_map<char,unordered_map<char,vector<char>>>;
 
 NodePaths maze_all_paths(const Graph<MazeNode>& maze) {
   NodePaths node_to_node_path;
   vector<MazeNode> keys_and_doors { maze_all_keys_and_doors(maze) };
+
 
   for(int i=0; i<keys_and_doors.size(); i++) {
     for(int j=i+1; j<keys_and_doors.size(); j++) {
@@ -383,23 +384,31 @@ NodePaths maze_all_paths(const Graph<MazeNode>& maze) {
 
       const auto from_to = breadth_first_search(maze, from, to);
 
-      auto required_keys = std::accumulate(from_to.begin(), from_to.end(),
-					   set<char>(),
-					   [](set<char>& s, const MazeNode &n) {
-					     if(isupper(n.val)) {
-					       s.insert(tolower(n.val));
-					     }
-					     return s;
-					   });
+      // auto required_keys = std::accumulate(from_to.begin(), from_to.end(),
+      // 					   set<char>(),
+      // 					   [](set<char>& s, const MazeNode &n) {
+      // 					     if(isupper(n.val)) {
+      // 					       s.insert(tolower(n.val));
+      // 					     }
+      // 					     return s;
+      // 					   });
 
-      auto reversed = from_to;
+      vector<char> from_to_char;
+
+      transform(from_to.begin(), from_to.end(),
+		back_inserter(from_to_char),
+		[](const MazeNode n) {
+		  return n.val;
+		});
+
+      auto reversed = from_to_char;
       reverse(reversed.begin(), reversed.end());
 
-      node_to_node_path[from][to].path = move(from_to);
-      node_to_node_path[from][to].required_keys = required_keys;
+      node_to_node_path[from.val][to.val] = move(from_to_char);
+      // node_to_node_path[from][to].required_keys = required_keys;
 
-      node_to_node_path[to][from].path = move(reversed);
-      node_to_node_path[to][from].required_keys = required_keys;
+      node_to_node_path[to.val][from.val] = move(reversed);
+      // node_to_node_path[to][from].required_keys = required_keys;
     }
   }
 

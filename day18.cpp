@@ -417,77 +417,76 @@ namespace maze {
     return islower(node_val);
   }
 
+  struct maze_position{
+    maze_position() {}
+
+    maze_position(const char at_key,
+		  const bitset<64> collected_keys)
+      : at_key{at_key},
+	collected_keys{collected_keys} {
+	}
+    char at_key;
+    bitset<64> collected_keys;
+
+    bool operator==(const maze_position& position) const {
+      return at_key == position.at_key
+	&& collected_keys == position.collected_keys;
+    }
+
+    struct hash {
+      std::size_t operator()(const maze_position& position) const noexcept {
+	// from https://stackoverflow.com/questions/17016175/c-unordered-map-using-a-custom-class-type-as-the-key
+
+	size_t res = 17;
+	res = res * 31 + std::hash<char>{}(position.at_key);
+	res = res * 31 + std::hash<bitset<64>>{}(position.collected_keys);
+
+	return res;
+      }
+    };
+  };
+
+  class key_bitset_encoding {
+    unordered_map<char,bitset<64>> key_to_bit_mask;
+    bitset<64> keys_complete;
+  public:
+    key_bitset_encoding(const Graph<MazeNode>& maze) {
+      const auto all_keys = maze_all_keys_and_doors(maze);
+
+      if(all_keys.size()>64) {
+	throw invalid_argument("Cannot solve maze with more than 64 keys");
+      }
+
+      unsigned long bit_idx=0;
+
+      for(auto key : all_keys) {
+	// can we leave bit_idx in this scope?
+	key_to_bit_mask[key.val].set(bit_idx);
+
+	if(is_key_node(key.val)) {
+	  keys_complete.set(bit_idx);
+	}
+
+	bit_idx++;
+      }
+    }
+
+    bitset<64> operator[](const char key) const{
+      const auto res = key_to_bit_mask.find(key);
+      if(res == key_to_bit_mask.end()) {
+	return 0;
+      }
+      return res->second;
+    }
+
+    bool is_all_keys(bitset<64> collected_keys) const {
+      return (collected_keys & keys_complete) == keys_complete;
+    }
+  };
+
   vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
 				  MazeNode root) {
     // This function uses modified dijkstra
-
-
-    struct maze_position{
-      maze_position() {}
-
-      maze_position(const char at_key,
-		    const bitset<64> collected_keys)
-	: at_key{at_key},
-	  collected_keys{collected_keys} {
-	  }
-      char at_key;
-      bitset<64> collected_keys;
-
-      bool operator==(const maze_position& position) const {
-	return at_key == position.at_key
-	  && collected_keys == position.collected_keys;
-      }
-
-      struct hash {
-	std::size_t operator()(const maze_position& position) const noexcept {
-	  // from https://stackoverflow.com/questions/17016175/c-unordered-map-using-a-custom-class-type-as-the-key
-
-	  size_t res = 17;
-	  res = res * 31 + std::hash<char>{}(position.at_key);
-	  res = res * 31 + std::hash<bitset<64>>{}(position.collected_keys);
-
-	  return res;
-	}
-      };
-    };
-
-    class key_bitset_encoding {
-      unordered_map<char,bitset<64>> key_to_bit_mask;
-      bitset<64> keys_complete;
-    public:
-      key_bitset_encoding(const Graph<MazeNode>& maze) {
-	const auto all_keys = maze_all_keys_and_doors(maze);
-
-	if(all_keys.size()>64) {
-	  throw invalid_argument("Cannot solve maze with more than 64 keys");
-	}
-
-	unsigned long bit_idx=0;
-
-	for(auto key : all_keys) {
-	  // can we leave bit_idx in this scope?
-	  key_to_bit_mask[key.val].set(bit_idx);
-
-	  if(is_key_node(key.val)) {
-	    keys_complete.set(bit_idx);
-	  }
-
-	  bit_idx++;
-	}
-      }
-
-      bitset<64> operator[](const char key) const{
-	const auto res = key_to_bit_mask.find(key);
-	if(res == key_to_bit_mask.end()) {
-	  return 0;
-	}
-	return res->second;
-      }
-
-      bool is_all_keys(bitset<64> collected_keys) const {
-	return (collected_keys & keys_complete) == keys_complete;
-      }
-    };
 
     unordered_map<char,MazeNode> key_to_node;
 
@@ -513,7 +512,6 @@ namespace maze {
     const maze_position root_node {root.val, key_encoding['@']};
     dijkstra_queue.push(root_node);
     weights[root_node]= 0;
-
 
     unordered_map<char, unordered_map<char, bitset<64>>> path_required_keys;
     unordered_map<char, unordered_map<char, bitset<64>>> path_keys;
@@ -573,17 +571,17 @@ namespace maze {
 	}
 
 	const auto distance = path.size()-1;
-	const maze_position nck(adj_node,
+	const maze_position pos(adj_node,
 				current_node.collected_keys |
 				path_keys[current_node.at_key][adj_node]);
 
-	const auto adj_weight = weights.find(nck);
+	const auto adj_weight = weights.find(pos);
 
 	if(adj_weight == weights.end() ||
 	   (my_weight + distance) < adj_weight->second) {
 	  parents[key_to_node[adj_node]] = key_to_node[current_node.at_key];
-	  weights[nck] = my_weight + distance;
-	  dijkstra_queue.push(nck);
+	  weights[pos] = my_weight + distance;
+	  dijkstra_queue.push(pos);
 	}
       }
     }

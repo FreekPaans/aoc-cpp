@@ -143,11 +143,11 @@ vector<string> split_lines2(const string& input) {
   return res;
 }
 
-class Node {
+class MazeNode {
 public:
   struct NodeHash
   {
-    std::size_t operator()(const Node& n) const noexcept {
+    std::size_t operator()(const MazeNode& n) const noexcept {
       // from https://stackoverflow.com/questions/17016175/c-unordered-map-using-a-custom-class-type-as-the-key
 
       size_t res = 17;
@@ -160,17 +160,17 @@ public:
   };
 
   using hash = NodeHash;
-  using set = unordered_set<Node,NodeHash>;
+  using set = unordered_set<MazeNode,NodeHash>;
   template <typename MapTo>
-  using map = unordered_map<Node,MapTo,NodeHash>;
+  using map = unordered_map<MazeNode,MapTo,NodeHash>;
   int x, y;
   char val;
 
-  bool operator<(const Node& b) const{
+  bool operator<(const MazeNode& b) const{
     return x < b.x || ( x == b.x && y < b.y);
   }
 
-  bool operator==(const Node& b) const {
+  bool operator==(const MazeNode& b) const {
     return x == b.x && y == b.y && val == b.val;
   }
 };
@@ -236,13 +236,13 @@ public:
   }
 };
 
-Graph<Node> parse_maze(const string& input) {
-  vector<Node> all_nodes;
+Graph<MazeNode> parse_maze(const string& input) {
+  vector<MazeNode> all_nodes;
   int i=0;
   for(auto& line : split_lines2(input)) {
     int j=0;
     for(auto c : line) {
-      Node n;
+      MazeNode n;
       n.x = i;
       n.y = j;
       n.val = c;
@@ -252,15 +252,15 @@ Graph<Node> parse_maze(const string& input) {
     i++;
   }
 
-  all_nodes = filter(all_nodes,[](const Node& n) { return n.val != '#'; });
+  all_nodes = filter(all_nodes,[](const MazeNode& n) { return n.val != '#'; });
 
-  map<pair<int,int>, Node> coord_to_node;
+  map<pair<int,int>, MazeNode> coord_to_node;
 
   for(auto n : all_nodes) {
     coord_to_node[make_pair(n.x, n.y)] = n;
   }
 
-  Graph<Node> g;
+  Graph<MazeNode> g;
 
   for(auto n : all_nodes) {
     g.add(n);
@@ -278,11 +278,11 @@ Graph<Node> parse_maze(const string& input) {
   return g;
 }
 
-vector<Node> recover_path(const Node::map<Node> parents,
-			  Node from, Node to) {
-  vector<Node> res;
+vector<MazeNode> recover_path(const MazeNode::map<MazeNode> parents,
+			  MazeNode from, MazeNode to) {
+  vector<MazeNode> res;
 
-  Node next = to;
+  MazeNode next = to;
   while(true) {
     res.push_back(next);
     if(next == from) {
@@ -301,12 +301,12 @@ vector<Node> recover_path(const Node::map<Node> parents,
   return res;
 }
 
-vector<Node> breadth_first_search(const Graph<Node>& g,
-				  const Node from,
-				  const Node to) {
-  queue<Node> next;
-  Node::set seen;
-  Node::map<Node> parents;
+vector<MazeNode> breadth_first_search(const Graph<MazeNode>& g,
+				  const MazeNode from,
+				  const MazeNode to) {
+  queue<MazeNode> next;
+  MazeNode::set seen;
+  MazeNode::map<MazeNode> parents;
 
   next.push(from);
 
@@ -348,32 +348,32 @@ int main2() {
   
 }
 
-ostream& operator<<(ostream& o, const Node& n) {
+ostream& operator<<(ostream& o, const MazeNode& n) {
   o << n.x << "," << n.y << " => " << n.val;
   return o;
 }
 
-vector<Node> maze_all_nodes(const Graph<Node>& maze) {
+vector<MazeNode> maze_all_nodes(const Graph<MazeNode>& maze) {
   const auto all_nodes {
     filter_set(maze.nodes(),
-	       [](const Node& n){
+	       [](const MazeNode& n){
 		 return n.val != '.';
 	       })};
 
 
-  vector<Node> nodes { all_nodes.begin(), all_nodes.end() };
+  vector<MazeNode> nodes { all_nodes.begin(), all_nodes.end() };
   return nodes;
 }
 
 struct NodePath {
-  vector<Node> path;
+  vector<MazeNode> path;
   set<char> required_keys;
 };
-using NodePaths = Node::map<Node::map<NodePath>>;
+using NodePaths = MazeNode::map<MazeNode::map<NodePath>>;
 
-NodePaths all_paths(const Graph<Node>& maze) {
+NodePaths all_paths(const Graph<MazeNode>& maze) {
   NodePaths node_to_node_path;
-  vector<Node> all_nodes_v { maze_all_nodes(maze) };
+  vector<MazeNode> all_nodes_v { maze_all_nodes(maze) };
 
   for(int i=0; i<all_nodes_v.size(); i++) {
     for(int j=i+1; j<all_nodes_v.size(); j++) {
@@ -384,7 +384,7 @@ NodePaths all_paths(const Graph<Node>& maze) {
 
       auto required_keys = std::accumulate(from_to.begin(), from_to.end(),
 					   set<char>(),
-					   [](set<char>& s, const Node &n) {
+					   [](set<char>& s, const MazeNode &n) {
 					     if(isupper(n.val)) {
 					       s.insert(tolower(n.val));
 					     }
@@ -421,8 +421,8 @@ auto measure(string label, F f) -> decltype(f()){
   return result;
 }
 
-vector<Node> find_min_steps(const Graph<Node>& maze,
-			    Node root) {
+vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
+			    MazeNode root) {
   // This function uses modified dijkstra
 
   // todo recheck weight in prio-queue
@@ -463,7 +463,7 @@ vector<Node> find_min_steps(const Graph<Node>& maze,
 
   const auto all_keys = maze_all_nodes(maze);
 
-  unordered_map<char,Node> key_to_node;
+  unordered_map<char,MazeNode> key_to_node;
   unordered_map<char,bitset<64>> key_encoding;
 
   if(all_keys.size()>64) {
@@ -522,7 +522,7 @@ vector<Node> find_min_steps(const Graph<Node>& maze,
 	    return 0;
 	  });
 
-  Node::map<Node> parents;
+  MazeNode::map<MazeNode> parents;
   while(true) {
     if(limit--==0) {
       throw domain_error("reached limit");
@@ -537,7 +537,7 @@ vector<Node> find_min_steps(const Graph<Node>& maze,
     if((smallest.collected_keys & keys_complete) == keys_complete) {
       cout << "All done! " << weights[smallest] << " " << smallest.collected_keys << endl;
       cout << "Took " << max_iterations - limit << " iterations" <<endl;
-      return vector<Node>();
+      return vector<MazeNode>();
     }
 
     const auto my_weight = weights[smallest];
@@ -598,7 +598,7 @@ int main() {
   const auto all_nodes = maze_all_nodes(maze);
 
   const auto root = *find_if(all_nodes.begin(), all_nodes.end(),
-			    [](const Node& n) {
+			    [](const MazeNode& n) {
 			      return n.val == '@';
 			    });
 

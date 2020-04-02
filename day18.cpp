@@ -159,44 +159,6 @@ auto measure(string label, F f) -> decltype(f()){
   return result;
 }
 
-
-class MazeNode {
-public:
-  struct MazeNodeHash
-  {
-    std::size_t operator()(const MazeNode& n) const noexcept {
-      // from https://stackoverflow.com/questions/17016175/c-unordered-map-using-a-custom-class-type-as-the-key
-
-      size_t res = 17;
-      res = res * 31 + std::hash<int>{}(n.x);
-      res = res * 31 + std::hash<int>{}(n.y);
-      res = res * 31 + std::hash<char>{}(n.val);
-
-      return res;
-    }
-  };
-
-  using hash = MazeNodeHash;
-  using set = unordered_set<MazeNode,MazeNodeHash>;
-  template <typename MapTo>
-  using map = unordered_map<MazeNode,MapTo,MazeNodeHash>;
-  int x, y;
-  char val;
-
-  bool operator<(const MazeNode& b) const{
-    return x < b.x || ( x == b.x && y < b.y);
-  }
-
-  bool operator==(const MazeNode& b) const {
-    return x == b.x && y == b.y && val == b.val;
-  }
-};
-
-ostream& operator<<(ostream& o, const MazeNode& n) {
-  o << n.x << "," << n.y << " => " << n.val;
-  return o;
-}
-
 template<typename Container, typename FilterFn>
 Container filter(const Container& s, const FilterFn f) {
   Container res;
@@ -320,6 +282,43 @@ namespace graph {
 
 namespace maze {
   using namespace graph;
+
+  class MazeNode {
+  public:
+    struct MazeNodeHash
+    {
+      std::size_t operator()(const MazeNode& n) const noexcept {
+	// from https://stackoverflow.com/questions/17016175/c-unordered-map-using-a-custom-class-type-as-the-key
+
+	size_t res = 17;
+	res = res * 31 + std::hash<int>{}(n.x);
+	res = res * 31 + std::hash<int>{}(n.y);
+	res = res * 31 + std::hash<char>{}(n.val);
+
+	return res;
+      }
+    };
+
+    using hash = MazeNodeHash;
+    using set = unordered_set<MazeNode,MazeNodeHash>;
+    template <typename MapTo>
+    using map = unordered_map<MazeNode,MapTo,MazeNodeHash>;
+    int x, y;
+    char val;
+
+    bool operator<(const MazeNode& b) const{
+      return x < b.x || ( x == b.x && y < b.y);
+    }
+
+    bool operator==(const MazeNode& b) const {
+      return x == b.x && y == b.y && val == b.val;
+    }
+  };
+
+  ostream& operator<<(ostream& o, const MazeNode& n) {
+    o << n.x << "," << n.y << " => " << n.val;
+    return o;
+  }
 
   Graph<MazeNode> parse_maze(const string& input) {
     vector<MazeNode> all_nodes;
@@ -636,7 +635,7 @@ int main() {
   const auto all_nodes = maze::maze_all_keys_and_doors(maze);
 
   const auto root = *find_if(all_nodes.begin(), all_nodes.end(),
-			     [](const MazeNode& n) {
+			     [](const maze::MazeNode& n) {
 			       return n.val == '@';
 			     });
 

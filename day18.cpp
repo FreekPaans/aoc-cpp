@@ -151,7 +151,7 @@ auto measure(string label, F f) -> decltype(f()){
 
   auto after = high_resolution_clock::now();
 
-  cout << "Timing " << label << ": "
+  cout << "Timing `" << label << "`: "
        << duration_cast<microseconds>(after - before).count()
        << "us"
        << endl;
@@ -484,109 +484,116 @@ namespace maze {
     }
   };
 
-  vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
-				  MazeNode root) {
-    // This function uses modified dijkstra
-
-    unordered_map<char,MazeNode> key_to_node;
-
-    for(auto key : maze_all_keys_and_doors(maze)) {
-      key_to_node[key.val] = key;
-    }
-
-    auto node_to_node_path =
-      measure("all_paths",
-	      [&maze]() {
-		return maze_all_paths(maze);
-	      });
-
-    key_bitset_encoding key_encoding{maze};
-    unordered_map<maze_position,int,maze_position::hash> weights;
-    const auto node_comparer = [&weights](const maze_position n1,
-					  const maze_position n2) {
-				 return weights[n1] > weights[n2];};
-    priority_queue<maze_position,
-		   vector<maze_position>, // is there a way to use the default second when we need to specify a third?
-		   decltype(node_comparer) > dijkstra_queue(node_comparer);
-
-    const maze_position root_node {root.val, key_encoding['@']};
-    dijkstra_queue.push(root_node);
-    weights[root_node]= 0;
-
+  class path_finder {
+    const key_bitset_encoding key_encoding;
     unordered_map<char, unordered_map<char, bitset<64>>> path_required_keys;
     unordered_map<char, unordered_map<char, bitset<64>>> path_keys;
+    NodePaths node_to_node_path;
+    unordered_map<char,MazeNode> key_to_node;
 
-    measure("generate path keys",
-	    [&node_to_node_path,&path_required_keys, &path_keys,&key_encoding]() {
-	      for(auto from_node : node_to_node_path) {
-		for(auto to_node : from_node.second) {
-		  for(auto node : to_node.second) {
-		    path_keys[from_node.first][to_node.first]
-		      |= key_encoding[node];
+  public:
 
-		    if(is_door_node(node)) {
-		      path_required_keys[from_node.first][to_node.first] |= key_encoding[tolower(node)];
-		    }
-		  }
-		}
-	      }
-	      return 0;
-	    });
-
-    const int max_iterations = 10000000;
-    int limit = max_iterations;
-
-    MazeNode::map<MazeNode> parents;
-    while(true) {
-      if(limit--==0) {
-	throw domain_error("reached limit");
+    path_finder(const Graph<MazeNode>& maze) :
+      key_encoding{maze},
+      node_to_node_path {maze_all_paths(maze)}
+    {
+      for(auto key : maze_all_keys_and_doors(maze)) {
+	key_to_node[key.val] = key;
       }
 
-      if(dijkstra_queue.empty()) {
-	break;
-      }
+      for(auto from_node : node_to_node_path) {
+	for(auto to_node : from_node.second) {
+	  for(auto node : to_node.second) {
+	    path_keys[from_node.first][to_node.first]
+	      |= key_encoding[node];
 
-      auto current_node = dijkstra_queue.top();
-      dijkstra_queue.pop();
-
-      if(key_encoding.is_all_keys(current_node.collected_keys)) {
-	cout << "All done! " << weights[current_node] << " " << current_node.collected_keys << endl;
-	cout << "Took " << max_iterations - limit << " iterations" <<endl;
-	return vector<MazeNode>();
-      }
-
-      const auto my_weight = weights[current_node];
-
-      for(const auto& adjacent : node_to_node_path[current_node.at_key]) {
-	const auto adj_node = adjacent.first;
-	const auto path = adjacent.second;
-
-	if(!is_key_node(adj_node)) {
-	  continue;
-	}
-
-	const auto required_keys = path_required_keys[current_node.at_key][adj_node];
-	if((current_node.collected_keys & required_keys) != required_keys) {
-	  continue;
-	}
-
-	const auto distance = path.size()-1;
-	const maze_position pos(adj_node,
-				current_node.collected_keys |
-				path_keys[current_node.at_key][adj_node]);
-
-	const auto adj_weight = weights.find(pos);
-
-	if(adj_weight == weights.end() ||
-	   (my_weight + distance) < adj_weight->second) {
-	  parents[key_to_node[adj_node]] = key_to_node[current_node.at_key];
-	  weights[pos] = my_weight + distance;
-	  dijkstra_queue.push(pos);
+	    if(is_door_node(node)) {
+	      path_required_keys[from_node.first][to_node.first] |= key_encoding[tolower(node)];
+	    }
+	  }
 	}
       }
     }
 
-    throw domain_error("Couldn't find path");
+    vector<MazeNode> solve(const MazeNode root, const int max_iterations) {
+      // This function uses modified dijkstra
+
+      unordered_map<maze_position,int,maze_position::hash> weights;
+      const auto node_comparer = [&weights](const maze_position n1,
+					    const maze_position n2) {
+				   return weights[n1] > weights[n2];};
+      priority_queue<maze_position,
+		     vector<maze_position>, // is there a way to use the default second when we need to specify a third?
+		     decltype(node_comparer) > dijkstra_queue(node_comparer);
+
+      const maze_position root_node {root.val, key_encoding[root.val]};
+      dijkstra_queue.push(root_node);
+      weights[root_node]= 0;
+
+      int limit = max_iterations;
+
+      MazeNode::map<MazeNode> parents;
+      while(true) {
+	if(limit--==0) {
+	  throw domain_error("reached limit");
+	}
+
+	if(dijkstra_queue.empty()) {
+	  break;
+	}
+
+	const auto current_node = dijkstra_queue.top();
+	dijkstra_queue.pop();
+
+	if(key_encoding.is_all_keys(current_node.collected_keys)) {
+	  cout << "All done! " << weights[current_node] << " " << current_node.collected_keys << endl;
+	  cout << "Took " << max_iterations - limit << " iterations" <<endl;
+	  return vector<MazeNode>();
+	}
+
+	const auto my_weight = weights[current_node];
+
+	for(const auto& adjacent : node_to_node_path[current_node.at_key]) {
+	  const auto adj_node = adjacent.first;
+	  const auto path = adjacent.second;
+
+	  if(!is_key_node(adj_node)) {
+	    continue;
+	  }
+
+	  const auto required_keys = path_required_keys[current_node.at_key][adj_node];
+	  if((current_node.collected_keys & required_keys) != required_keys) {
+	    continue;
+	  }
+
+	  const auto distance = path.size()-1;
+	  const maze_position pos(adj_node,
+				  current_node.collected_keys |
+				  path_keys[current_node.at_key][adj_node]);
+
+	  const auto adj_weight = weights.find(pos);
+
+	  if(adj_weight == weights.end() ||
+	     (my_weight + distance) < adj_weight->second) {
+	    parents[key_to_node[adj_node]] = key_to_node[current_node.at_key];
+	    weights[pos] = my_weight + distance;
+	    dijkstra_queue.push(pos);
+	  }
+	}
+      }
+
+      throw domain_error("Couldn't find path");
+
+    }
+  };
+
+  vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
+				  const MazeNode root,
+				  const int max_iterations=100000) {
+    path_finder finder{maze};
+
+    return finder.solve(root, max_iterations);
+
   }
 }
 
@@ -631,6 +638,8 @@ int main() {
   }
 }
 
+// Questions:
 // map with const subscript operator?
 // how to ergonomic map/filter operations? (LINQ?)
 // easier way to specify hash functions?
+// template optional arguments use default

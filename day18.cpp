@@ -471,8 +471,51 @@ vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
 	return res;
       }
     };
-
   };
+
+  class key_bitset_encoding {
+    unordered_map<char,bitset<64>> key_to_bit_mask;
+    bitset<64> keys_complete;
+  public:
+    key_bitset_encoding(const Graph<MazeNode>& maze) {
+      const auto all_keys = maze_all_keys_and_doors(maze);
+
+      if(all_keys.size()>64) {
+	throw invalid_argument("Cannot solve maze with more than 64 keys");
+      }
+
+      unsigned long bit_idx=0;
+
+      for(auto key : all_keys) {
+	// can we leave bit_idx in this scope?
+	key_to_bit_mask[key.val].set(bit_idx);
+
+	if(is_key_node(key.val)) {
+	  keys_complete.set(bit_idx);
+	}
+
+	bit_idx++;
+      }
+    }
+
+    bitset<64> operator[](const char key) const{
+      const auto res = key_to_bit_mask.find(key);
+      if(res == key_to_bit_mask.end()) {
+	return 0;
+      }
+      return res->second;
+    }
+
+    bool is_all_keys(bitset<64> collected_keys) const {
+      return (collected_keys & keys_complete) == keys_complete;
+    }
+  };
+
+  unordered_map<char,MazeNode> key_to_node;
+
+  for(auto key : maze_all_keys_and_doors(maze)) {
+    key_to_node[key.val] = key;
+  }
 
   auto node_to_node_path =
     measure("all_paths",
@@ -480,27 +523,7 @@ vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
 	      return maze_all_paths(maze);
 	    });
 
-  const auto all_keys = maze_all_keys_and_doors(maze);
-
-  unordered_map<char,MazeNode> key_to_node;
-  unordered_map<char,bitset<64>> key_encoding;
-
-  if(all_keys.size()>64) {
-    throw invalid_argument("Cannot solve maze with more than 64 keys");
-  }
-
-  bitset<64> keys_complete;
-  unsigned long bit_idx=0;
-
-  for(auto key : all_keys) {
-    // can we leave bit_idx in this scope?
-    key_to_node[key.val] = key;
-    if(islower(key.val)) {
-      keys_complete.set(bit_idx);
-    }
-    key_encoding[key.val].set(bit_idx);
-    bit_idx++;
-  }
+  key_bitset_encoding key_encoding{maze};
 
   maze_position root_node {root.val, key_encoding['@']};
   unordered_map<maze_position,int,maze_position::hash> weights {{root_node, 0}};
@@ -554,7 +577,7 @@ vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
     auto current_node = dijkstra_queue.top();
     dijkstra_queue.pop();
 
-    if((current_node.collected_keys & keys_complete) == keys_complete) {
+    if(key_encoding.is_all_keys(current_node.collected_keys)) {
       cout << "All done! " << weights[current_node] << " " << current_node.collected_keys << endl;
       cout << "Took " << max_iterations - limit << " iterations" <<endl;
       return vector<MazeNode>();

@@ -431,6 +431,10 @@ auto measure(string label, F f) -> decltype(f()){
   return result;
 }
 
+bool is_door(char node_val) {
+  return isupper(node_val);
+}
+
 vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
 				MazeNode root) {
   // This function uses modified dijkstra
@@ -519,13 +523,13 @@ vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
 	  [&node_to_node_path,&path_required_keys, &path_keys,&key_encoding]() {
 	    for(auto from_node : node_to_node_path) {
 	      for(auto to_node : from_node.second) {
-		for(auto key : to_node.second.required_keys) {
-		  path_required_keys[from_node.first.val][to_node.first.val] |= key_encoding[key];
-		}
+		for(auto node : to_node.second) {
+		  path_keys[from_node.first][to_node.first]
+		    |= key_encoding[node];
 
-		for(auto node : to_node.second.path) {
-		  path_keys[from_node.first.val][to_node.first.val]
-		    |= key_encoding[node.val];
+		  if(is_door(node)) {
+		    path_required_keys[from_node.first][to_node.first] |= key_encoding[tolower(node)];
+		  }
 		}
 	      }
 	    }
@@ -552,33 +556,30 @@ vector<MazeNode> find_min_steps(const Graph<MazeNode>& maze,
 
     const auto my_weight = weights[smallest];
 
-    for(auto& adjacent : node_to_node_path[key_to_node[smallest.key]]) {
-      if(!islower(adjacent.first.val)) {
+    for(const auto& adjacent : node_to_node_path[smallest.key]) {
+      const auto adj_key = adjacent.first;
+      const auto path = adjacent.second;
+
+      if(!islower(adj_key)) {
 	continue;
       }
 
-      const auto required_keys = path_required_keys[smallest.key][adjacent.first.val];
+      const auto required_keys = path_required_keys[smallest.key][adj_key];
       if((smallest.collected_keys & required_keys) != required_keys) {
 	continue;
       }
 
-      const auto adj_key = adjacent.first.val;
-      const auto dist = adjacent.second.path.size()-1;
+      const auto distance = path.size()-1;
+      const node_collected_keys nck(adj_key,
+				    smallest.collected_keys |
+				    path_keys[smallest.key][adj_key]);
 
-      bitset<64> key_builder;
-      for(auto i : adjacent.second.path) {
-	key_builder |= key_encoding[i.val];
-      }
-      node_collected_keys nck(adj_key,
-			      smallest.collected_keys |
-			      path_keys[smallest.key][adjacent.first.val]
-			      );
       const auto adj_weight = weights.find(nck);
 
       if(adj_weight == weights.end() ||
-	 (my_weight + dist) < adj_weight->second) {
-	parents[adjacent.first] = key_to_node[smallest.key];
-	weights[nck] = my_weight + dist;
+	 (my_weight + distance) < adj_weight->second) {
+	parents[key_to_node[adj_key]] = key_to_node[smallest.key];
+	weights[nck] = my_weight + distance;
 	smallest_path.push(nck);
       }
     }

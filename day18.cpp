@@ -410,19 +410,29 @@ namespace maze {
     return islower(node_val);
   }
 
-  struct maze_position{
-    maze_position() {}
+  class maze_position{
+  private:
+    char _at_key; // ideally make const, but that breaks move/copy operations
+    bitset<64> _collected_keys;
+
+  public:
     maze_position(const char at_key,
 		  const bitset<64> collected_keys)
-      : at_key{at_key},
-	collected_keys{collected_keys} {
+      : _at_key{at_key},
+	_collected_keys{collected_keys} {
 	}
-    char at_key;
-    bitset<64> collected_keys;
 
     bool operator==(const maze_position& position) const {
-      return at_key == position.at_key
-	&& collected_keys == position.collected_keys;
+      return _at_key == position._at_key
+	&& _collected_keys == position._collected_keys;
+    }
+
+    char at_key() const {
+      return _at_key;
+    }
+
+    bitset<64> collected_keys() const {
+      return _collected_keys;
     }
 
     struct hash {
@@ -430,8 +440,8 @@ namespace maze {
 	// from https://stackoverflow.com/questions/17016175/c-unordered-map-using-a-custom-class-type-as-the-key
 
 	size_t res = 17;
-	res = res * 31 + std::hash<char>{}(position.at_key);
-	res = res * 31 + std::hash<bitset<64>>{}(position.collected_keys);
+	res = res * 31 + std::hash<char>{}(position._at_key);
+	res = res * 31 + std::hash<bitset<64>>{}(position._collected_keys);
 
 	return res;
       }
@@ -503,7 +513,7 @@ namespace maze {
       // TODO: can probably share this with `recover_path`
       maze_position next = to;
       while(true) {
-	res.path.push_back(key_to_node[next.at_key]);
+	res.path.push_back(key_to_node[next.at_key()]);
 
 	if(next == from) {
 	  break;
@@ -573,17 +583,17 @@ namespace maze {
 	  break;
 	}
 
-	const auto current_node = dijkstra_queue.top();
+	const maze_position current_node { dijkstra_queue.top()};
 	dijkstra_queue.pop();
 
-	if(key_encoding.is_all_keys(current_node.collected_keys)) {
+	if(key_encoding.is_all_keys(current_node.collected_keys())) {
 	  return done(parents, root_node, current_node, weights[current_node],
 		      max_iterations-limit);
 	}
 
 	const auto my_weight = weights[current_node];
 
-	for(const auto& adjacent : node_to_node_path[current_node.at_key]) {
+	for(const auto& adjacent : node_to_node_path[current_node.at_key()]) {
 	  const auto adj_node = adjacent.first;
 	  const auto path = adjacent.second;
 
@@ -591,21 +601,21 @@ namespace maze {
 	    continue;
 	  }
 
-	  const auto required_keys = path_required_keys[current_node.at_key][adj_node];
-	  if((current_node.collected_keys & required_keys) != required_keys) {
+	  const auto required_keys = path_required_keys[current_node.at_key()][adj_node];
+	  if((current_node.collected_keys() & required_keys) != required_keys) {
 	    continue;
 	  }
 
 	  const auto distance = path.size()-1;
 	  const maze_position pos(adj_node,
-				  current_node.collected_keys |
-				  path_keys[current_node.at_key][adj_node]);
+				  current_node.collected_keys() |
+				  path_keys[current_node.at_key()][adj_node]);
 
 	  const auto adj_weight = weights.find(pos);
 
 	  if(adj_weight == weights.end() ||
 	     (my_weight + distance) < adj_weight->second) {
-	    parents[pos] = current_node;
+	    parents.insert({pos, current_node});
 	    weights[pos] = my_weight + distance;
 	    dijkstra_queue.push(pos);
 	  }
@@ -672,4 +682,4 @@ int main() {
 // named tuples
 // class initializer syntax? SolveMazeResult { steps=12, etc }
 // for(auto i : ...) some way to keep a counter?
-// making `maze_position` const
+// making `maze_position` const/immutable
